@@ -1,35 +1,49 @@
 from __future__ import annotations
+
 import datetime
+import io
+import json
 import logging
 import os
 
-import tiktoken
-
-import openai
-
-import requests
-import json
 import httpx
-import io
-from datetime import date
-from calendar import monthrange
+import openai
+import tiktoken
 from PIL import Image
-
-from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
-
-from utils import is_direct_result, encode_image, decode_image
 from plugin_manager import PluginManager
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
+from utils import decode_image, encode_image, is_direct_result
 
 # Models can be found here: https://platform.openai.com/docs/models/overview
 # Models gpt-3.5-turbo-0613 and  gpt-3.5-turbo-16k-0613 will be deprecated on June 13, 2024
-GPT_3_MODELS = ("gpt-3.5-turbo", "gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613")
-GPT_3_16K_MODELS = ("gpt-3.5-turbo-16k", "gpt-3.5-turbo-16k-0613", "gpt-3.5-turbo-1106", "gpt-3.5-turbo-0125")
-GPT_4_MODELS = ("gpt-4", "gpt-4-0314", "gpt-4-0613", "gpt-4-turbo-preview")
-GPT_4_32K_MODELS = ("gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-0613")
-GPT_4_VISION_MODELS = ("gpt-4-vision-preview", "gpt-4o")
-GPT_4_128K_MODELS = ("gpt-4-1106-preview","gpt-4-0125-preview","gpt-4-turbo-preview", "gpt-4-turbo", "gpt-4-turbo-2024-04-09")
-GPT_4O_MODELS = ("gpt-4o",)
-GPT_ALL_MODELS = GPT_3_MODELS + GPT_3_16K_MODELS + GPT_4_MODELS + GPT_4_32K_MODELS + GPT_4_VISION_MODELS + GPT_4_128K_MODELS + GPT_4O_MODELS
+GPT_3_MODELS = ('gpt-3.5-turbo', 'gpt-3.5-turbo-0301', 'gpt-3.5-turbo-0613')
+GPT_3_16K_MODELS = (
+    'gpt-3.5-turbo-16k',
+    'gpt-3.5-turbo-16k-0613',
+    'gpt-3.5-turbo-1106',
+    'gpt-3.5-turbo-0125',
+)
+GPT_4_MODELS = ('gpt-4', 'gpt-4-0314', 'gpt-4-0613', 'gpt-4-turbo-preview')
+GPT_4_32K_MODELS = ('gpt-4-32k', 'gpt-4-32k-0314', 'gpt-4-32k-0613')
+GPT_4_VISION_MODELS = ('gpt-4-vision-preview', 'gpt-4o')
+GPT_4_128K_MODELS = (
+    'gpt-4-1106-preview',
+    'gpt-4-0125-preview',
+    'gpt-4-turbo-preview',
+    'gpt-4-turbo',
+    'gpt-4-turbo-2024-04-09',
+)
+GPT_4O_MODELS = ('gpt-4o',)
+GPT_ALL_MODELS = (
+    GPT_3_MODELS
+    + GPT_3_16K_MODELS
+    + GPT_4_MODELS
+    + GPT_4_32K_MODELS
+    + GPT_4_VISION_MODELS
+    + GPT_4_128K_MODELS
+    + GPT_4O_MODELS
+)
+
 
 def default_max_tokens(model: str) -> int:
     """
@@ -43,7 +57,7 @@ def default_max_tokens(model: str) -> int:
     elif model in GPT_4_MODELS:
         return base * 2
     elif model in GPT_3_16K_MODELS:
-        if model == "gpt-3.5-turbo-1106":
+        if model == 'gpt-3.5-turbo-1106':
             return 4096
         return base * 4
     elif model in GPT_4_32K_MODELS:
@@ -61,13 +75,21 @@ def are_functions_available(model: str) -> bool:
     Whether the given model supports functions
     """
     # Deprecated models
-    if model in ("gpt-3.5-turbo-0301", "gpt-4-0314", "gpt-4-32k-0314"):
+    if model in ('gpt-3.5-turbo-0301', 'gpt-4-0314', 'gpt-4-32k-0314'):
         return False
     # Stable models will be updated to support functions on June 27, 2023
-    if model in ("gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k","gpt-4-1106-preview","gpt-4-0125-preview","gpt-4-turbo-preview"):
+    if model in (
+        'gpt-3.5-turbo',
+        'gpt-3.5-turbo-1106',
+        'gpt-4',
+        'gpt-4-32k',
+        'gpt-4-1106-preview',
+        'gpt-4-0125-preview',
+        'gpt-4-turbo-preview',
+    ):
         return datetime.date.today() > datetime.date(2023, 6, 27)
     # Models gpt-3.5-turbo-0613 and  gpt-3.5-turbo-16k-0613 will be deprecated on June 13, 2024
-    if model in ("gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"):
+    if model in ('gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613'):
         return datetime.date.today() < datetime.date(2024, 6, 13)
     if model == 'gpt-4-vision-preview':
         return False
@@ -114,9 +136,9 @@ class OpenAIHelper:
         self.client = openai.AsyncOpenAI(api_key=config['api_key'], http_client=http_client)
         self.config = config
         self.plugin_manager = plugin_manager
-        self.conversations: dict[int: list] = {}  # {chat_id: history}
-        self.conversations_vision: dict[int: bool] = {}  # {chat_id: is_vision}
-        self.last_updated: dict[int: datetime] = {}  # {chat_id: last_update_timestamp}
+        self.conversations: dict[int:list] = {}  # {chat_id: history}
+        self.conversations_vision: dict[int:bool] = {}  # {chat_id: is_vision}
+        self.last_updated: dict[int:datetime] = {}  # {chat_id: last_update_timestamp}
 
     def get_conversation_stats(self, chat_id: int) -> tuple[int, int]:
         """
@@ -148,22 +170,24 @@ class OpenAIHelper:
             for index, choice in enumerate(response.choices):
                 content = choice.message.content.strip()
                 if index == 0:
-                    self.__add_to_history(chat_id, role="assistant", content=content)
+                    self.__add_to_history(chat_id, role='assistant', content=content)
                 answer += f'{index + 1}\u20e3\n'
                 answer += content
                 answer += '\n\n'
         else:
             answer = response.choices[0].message.content.strip()
-            self.__add_to_history(chat_id, role="assistant", content=answer)
+            self.__add_to_history(chat_id, role='assistant', content=answer)
 
         bot_language = self.config['bot_language']
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += "\n\n---\n" \
-                      f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}" \
-                      f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)}," \
-                      f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            answer += (
+                "\n\n---\n"
+                f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+                f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
+                f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            )
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
@@ -195,7 +219,7 @@ class OpenAIHelper:
                 answer += delta.content
                 yield answer, 'not_finished'
         answer = answer.strip()
-        self.__add_to_history(chat_id, role="assistant", content=answer)
+        self.__add_to_history(chat_id, role='assistant', content=answer)
         tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
 
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
@@ -213,7 +237,7 @@ class OpenAIHelper:
         reraise=True,
         retry=retry_if_exception_type(openai.RateLimitError),
         wait=wait_fixed(20),
-        stop=stop_after_attempt(3)
+        stop=stop_after_attempt(3),
     )
     async def __common_get_chat_response(self, chat_id: int, query: str, stream=False):
         """
@@ -229,7 +253,7 @@ class OpenAIHelper:
 
             self.last_updated[chat_id] = datetime.datetime.now()
 
-            self.__add_to_history(chat_id, role="user", content=query)
+            self.__add_to_history(chat_id, role='user', content=query)
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
@@ -242,21 +266,23 @@ class OpenAIHelper:
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
                     logging.debug(f'Summary: {summary}')
                     self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
-                    self.__add_to_history(chat_id, role="assistant", content=summary)
-                    self.__add_to_history(chat_id, role="user", content=query)
+                    self.__add_to_history(chat_id, role='assistant', content=summary)
+                    self.__add_to_history(chat_id, role='user', content=query)
                 except Exception as e:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
-                    self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
+                    self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size'] :]
 
             common_args = {
-                'model': self.config['model'] if not self.conversations_vision[chat_id] else self.config['vision_model'],
+                'model': self.config['model']
+                if not self.conversations_vision[chat_id]
+                else self.config['vision_model'],
                 'messages': self.conversations[chat_id],
                 'temperature': self.config['temperature'],
                 'n': self.config['n_choices'],
                 'max_tokens': self.config['max_tokens'],
                 'presence_penalty': self.config['presence_penalty'],
                 'frequency_penalty': self.config['frequency_penalty'],
-                'stream': stream
+                'stream': stream,
             }
 
             if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
@@ -313,9 +339,11 @@ class OpenAIHelper:
             plugins_used += (function_name,)
 
         if is_direct_result(function_response):
-            self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name,
-                                                content=json.dumps({'result': 'Done, the content has been sent'
-                                                                              'to the user.'}))
+            self.__add_function_call_to_history(
+                chat_id=chat_id,
+                function_name=function_name,
+                content=json.dumps({'result': 'Done, the content has been sent' 'to the user.'}),
+            )
             return function_response, plugins_used
 
         self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=function_response)
@@ -324,7 +352,7 @@ class OpenAIHelper:
             messages=self.conversations[chat_id],
             functions=self.plugin_manager.get_functions_specs(),
             function_call='auto' if times < self.config['functions_max_consecutive_calls'] else 'none',
-            stream=stream
+            stream=stream,
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
 
@@ -342,14 +370,13 @@ class OpenAIHelper:
                 model=self.config['image_model'],
                 quality=self.config['image_quality'],
                 style=self.config['image_style'],
-                size=self.config['image_size']
+                size=self.config['image_size'],
             )
 
             if len(response.data) == 0:
                 logging.error(f'No response from GPT: {str(response)}')
                 raise Exception(
-                    f"⚠️ _{localized_text('error', bot_language)}._ "
-                    f"⚠️\n{localized_text('try_again', bot_language)}."
+                    f"⚠️ _{localized_text('error', bot_language)}._ " f"⚠️\n{localized_text('try_again', bot_language)}."
                 )
 
             return response.data[0].url, self.config['image_size']
@@ -368,7 +395,7 @@ class OpenAIHelper:
                 model=self.config['tts_model'],
                 voice=self.config['tts_voice'],
                 input=text,
-                response_format='opus'
+                response_format='opus',
             )
 
             temp_file = io.BytesIO()
@@ -383,9 +410,11 @@ class OpenAIHelper:
         Transcribes the audio file using the Whisper model.
         """
         try:
-            with open(filename, "rb") as audio:
+            with open(filename, 'rb') as audio:
                 prompt_text = self.config['whisper_prompt']
-                result = await self.client.audio.transcriptions.create(model="whisper-1", file=audio, prompt=prompt_text)
+                result = await self.client.audio.transcriptions.create(
+                    model='whisper-1', file=audio, prompt=prompt_text
+                )
                 return result.text
         except Exception as e:
             logging.exception(e)
@@ -395,7 +424,7 @@ class OpenAIHelper:
         reraise=True,
         retry=retry_if_exception_type(openai.RateLimitError),
         wait=wait_fixed(20),
-        stop=stop_after_attempt(3)
+        stop=stop_after_attempt(3),
     )
     async def __common_get_chat_response_vision(self, chat_id: int, content: list, stream=False):
         """
@@ -413,13 +442,13 @@ class OpenAIHelper:
 
             if self.config['enable_vision_follow_up_questions']:
                 self.conversations_vision[chat_id] = True
-                self.__add_to_history(chat_id, role="user", content=content)
+                self.__add_to_history(chat_id, role='user', content=content)
             else:
                 for message in content:
                     if message['type'] == 'text':
                         query = message['text']
                         break
-                self.__add_to_history(chat_id, role="user", content=query)
+                self.__add_to_history(chat_id, role='user', content=query)
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
@@ -429,30 +458,28 @@ class OpenAIHelper:
             if exceeded_max_tokens or exceeded_max_history_size:
                 logging.info(f'Chat history for chat ID {chat_id} is too long. Summarising...')
                 try:
-                    
                     last = self.conversations[chat_id][-1]
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
                     logging.debug(f'Summary: {summary}')
                     self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
-                    self.__add_to_history(chat_id, role="assistant", content=summary)
+                    self.__add_to_history(chat_id, role='assistant', content=summary)
                     self.conversations[chat_id] += [last]
                 except Exception as e:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
-                    self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
+                    self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size'] :]
 
-            message = {'role':'user', 'content':content}
+            message = {'role': 'user', 'content': content}
 
             common_args = {
                 'model': self.config['vision_model'],
                 'messages': self.conversations[chat_id][:-1] + [message],
                 'temperature': self.config['temperature'],
-                'n': 1, # several choices is not implemented yet
+                'n': 1,  # several choices is not implemented yet
                 'max_tokens': self.config['vision_max_tokens'],
                 'presence_penalty': self.config['presence_penalty'],
                 'frequency_penalty': self.config['frequency_penalty'],
-                'stream': stream
+                'stream': stream,
             }
-
 
             # vision model does not yet support functions
 
@@ -461,7 +488,7 @@ class OpenAIHelper:
             #     if len(functions) > 0:
             #         common_args['functions'] = self.plugin_manager.get_functions_specs()
             #         common_args['function_call'] = 'auto'
-            
+
             return await self.client.chat.completions.create(**common_args)
 
         except openai.RateLimitError as e:
@@ -473,7 +500,6 @@ class OpenAIHelper:
         except Exception as e:
             raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
 
-
     async def interpret_image(self, chat_id, fileobj, prompt=None):
         """
         Interprets a given PNG image file using the Vision model.
@@ -481,15 +507,18 @@ class OpenAIHelper:
         image = encode_image(fileobj)
         prompt = self.config['vision_prompt'] if prompt is None else prompt
 
-        content = [{'type':'text', 'text':prompt}, {'type':'image_url', \
-                    'image_url': {'url':image, 'detail':self.config['vision_detail'] } }]
+        content = [
+            {'type': 'text', 'text': prompt},
+            {
+                'type': 'image_url',
+                'image_url': {'url': image, 'detail': self.config['vision_detail']},
+            },
+        ]
 
         response = await self.__common_get_chat_response_vision(chat_id, content)
 
-        
-
         # functions are not available for this model
-        
+
         # if self.config['enable_functions']:
         #     response, plugins_used = await self.__handle_function_call(chat_id, response)
         #     if is_direct_result(response):
@@ -501,23 +530,25 @@ class OpenAIHelper:
             for index, choice in enumerate(response.choices):
                 content = choice.message.content.strip()
                 if index == 0:
-                    self.__add_to_history(chat_id, role="assistant", content=content)
+                    self.__add_to_history(chat_id, role='assistant', content=content)
                 answer += f'{index + 1}\u20e3\n'
                 answer += content
                 answer += '\n\n'
         else:
             answer = response.choices[0].message.content.strip()
-            self.__add_to_history(chat_id, role="assistant", content=answer)
+            self.__add_to_history(chat_id, role='assistant', content=answer)
 
         bot_language = self.config['bot_language']
         # Plugins are not enabled either
         # show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         # plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += "\n\n---\n" \
-                      f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}" \
-                      f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)}," \
-                      f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            answer += (
+                "\n\n---\n"
+                f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+                f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
+                f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            )
             # if show_plugins_used:
             #     answer += f"\n🔌 {', '.join(plugin_names)}"
         # elif show_plugins_used:
@@ -532,12 +563,15 @@ class OpenAIHelper:
         image = encode_image(fileobj)
         prompt = self.config['vision_prompt'] if prompt is None else prompt
 
-        content = [{'type':'text', 'text':prompt}, {'type':'image_url', \
-                    'image_url': {'url':image, 'detail':self.config['vision_detail'] } }]
+        content = [
+            {'type': 'text', 'text': prompt},
+            {
+                'type': 'image_url',
+                'image_url': {'url': image, 'detail': self.config['vision_detail']},
+            },
+        ]
 
         response = await self.__common_get_chat_response_vision(chat_id, content, stream=True)
-
-        
 
         # if self.config['enable_functions']:
         #     response, plugins_used = await self.__handle_function_call(chat_id, response, stream=True)
@@ -554,11 +588,11 @@ class OpenAIHelper:
                 answer += delta.content
                 yield answer, 'not_finished'
         answer = answer.strip()
-        self.__add_to_history(chat_id, role="assistant", content=answer)
+        self.__add_to_history(chat_id, role='assistant', content=answer)
         tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
 
-        #show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
-        #plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
+        # show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
+        # plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
             answer += f"\n\n---\n💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
         #     if show_plugins_used:
@@ -574,7 +608,7 @@ class OpenAIHelper:
         """
         if content == '':
             content = self.config['assistant_prompt']
-        self.conversations[chat_id] = [{"role": "system", "content": content}]
+        self.conversations[chat_id] = [{'role': 'system', 'content': content}]
         self.conversations_vision[chat_id] = False
 
     def __max_age_reached(self, chat_id) -> bool:
@@ -594,7 +628,7 @@ class OpenAIHelper:
         """
         Adds a function call to the conversation history
         """
-        self.conversations[chat_id].append({"role": "function", "name": function_name, "content": content})
+        self.conversations[chat_id].append({'role': 'function', 'name': function_name, 'content': content})
 
     def __add_to_history(self, chat_id, role, content):
         """
@@ -603,7 +637,7 @@ class OpenAIHelper:
         :param role: The role of the message sender
         :param content: The message content
         """
-        self.conversations[chat_id].append({"role": role, "content": content})
+        self.conversations[chat_id].append({'role': role, 'content': content})
 
     async def __summarise(self, conversation) -> str:
         """
@@ -612,13 +646,14 @@ class OpenAIHelper:
         :return: The summary
         """
         messages = [
-            {"role": "assistant", "content": "Summarize this conversation in 700 characters or less"},
-            {"role": "user", "content": str(conversation)}
+            {
+                'role': 'assistant',
+                'content': 'Summarize this conversation in 700 characters or less',
+            },
+            {'role': 'user', 'content': str(conversation)},
         ]
         response = await self.client.chat.completions.create(
-            model=self.config['model'],
-            messages=messages,
-            temperature=0.4
+            model=self.config['model'], messages=messages, temperature=0.4
         )
         return response.choices[0].message.content
 
@@ -638,9 +673,7 @@ class OpenAIHelper:
             return base * 31
         if self.config['model'] in GPT_4O_MODELS:
             return base * 31
-        raise NotImplementedError(
-            f"Max tokens for model {self.config['model']} is not implemented yet."
-        )
+        raise NotImplementedError(f"Max tokens for model {self.config['model']} is not implemented yet.")
 
     # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
     def __count_tokens(self, messages) -> int:
@@ -653,7 +686,7 @@ class OpenAIHelper:
         try:
             encoding = tiktoken.encoding_for_model(model)
         except KeyError:
-            encoding = tiktoken.get_encoding("gpt-3.5-turbo")
+            encoding = tiktoken.get_encoding('gpt-3.5-turbo')
 
         if model in GPT_3_MODELS + GPT_3_16K_MODELS:
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
@@ -679,7 +712,7 @@ class OpenAIHelper:
                                 num_tokens += len(encoding.encode(message1['text']))
                 else:
                     num_tokens += len(encoding.encode(value))
-                    if key == "name":
+                    if key == 'name':
                         num_tokens += tokens_per_name
         num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
         return num_tokens
@@ -697,15 +730,16 @@ class OpenAIHelper:
         model = self.config['vision_model']
         if model not in GPT_4_VISION_MODELS:
             raise NotImplementedError(f"""count_tokens_vision() is not implemented for model {model}.""")
-        
+
         w, h = image.size
-        if w > h: w, h = h, w
+        if w > h:
+            w, h = h, w
         # this computation follows https://platform.openai.com/docs/guides/vision and https://openai.com/pricing#gpt-4-turbo
         base_tokens = 85
         detail = self.config['vision_detail']
         if detail == 'low':
             return base_tokens
-        elif detail == 'high' or detail == 'auto': # assuming worst cost for auto
+        elif detail == 'high' or detail == 'auto':  # assuming worst cost for auto
             f = max(w / 768, h / 2048)
             if f > 1:
                 w, h = int(w / f), int(h / f)

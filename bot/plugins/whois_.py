@@ -1,28 +1,30 @@
 from typing import Dict
-from .plugin import Plugin
 
 import whois
+
+from .plugin import Plugin
 
 
 class WhoisPlugin(Plugin):
     """
     A plugin to query whois database
     """
+
     def get_source_name(self) -> str:
-        return "Whois"
+        return 'Whois'
 
     def get_spec(self) -> [Dict]:
-        return [{
-            "name": "get_whois",
-            "description": "Get whois registration and expiry information for a domain",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "domain": {"type": "string", "description": "Domain name"}
+        return [
+            {
+                'name': 'get_whois',
+                'description': 'Get whois registration and expiry information for a domain',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'domain': {'type': 'string', 'description': 'Domain name'}},
+                    'required': ['domain'],
                 },
-                "required": ["domain"],
-            },
-        }]
+            }
+        ]
 
     async def execute(self, function_name, helper, **kwargs) -> Dict:
         try:

@@ -1,4 +1,4 @@
-import datetime
+import logging
 import tempfile
 from typing import Dict
 
@@ -11,20 +11,25 @@ class AutoTextToSpeech(Plugin):
     """
 
     def get_source_name(self) -> str:
-        return "TTS"
+        return 'TTS'
 
     def get_spec(self) -> [Dict]:
-        return [{
-            "name": "translate_text_to_speech",
-            "description": "Translate text to speech using OpenAI API",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "text": {"type": "string", "description": "The text to translate to speech"},
+        return [
+            {
+                'name': 'translate_text_to_speech',
+                'description': 'Translate text to speech using OpenAI API',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'text': {
+                            'type': 'string',
+                            'description': 'The text to translate to speech',
+                        },
+                    },
+                    'required': ['text'],
                 },
-                "required": ["text"],
-            },
-        }]
+            }
+        ]
 
     async def execute(self, function_name, helper, **kwargs) -> Dict:
         try:
@@ -34,11 +39,5 @@ class AutoTextToSpeech(Plugin):
                 temp_file_path = temp_file.name
         except Exception as e:
             logging.exception(e)
-            return {"Result": "Exception: " + str(e)}
-        return {
-            'direct_result': {
-                'kind': 'file',
-                'format': 'path',
-                'value': temp_file_path
-            }
-        }
+            return {'Result': 'Exception: ' + str(e)}
+        return {'direct_result': {'kind': 'file', 'format': 'path', 'value': temp_file_path}}

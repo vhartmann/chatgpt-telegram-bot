@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import itertools
 import json
 import logging
 import os
-import base64
 
 import telegram
-from telegram import Message, MessageEntity, Update, ChatMember, constants
+from telegram import ChatMember, Message, MessageEntity, Update, constants
 from telegram.ext import CallbackContext, ContextTypes
-
 from usage_tracker import UsageTracker
 
 
@@ -22,8 +21,10 @@ def message_text(message: Message) -> str:
     if message_txt is None:
         return ''
 
-    for _, text in sorted(message.parse_entities([MessageEntity.BOT_COMMAND]).items(),
-                          key=(lambda item: item[0].offset)):
+    for _, text in sorted(
+        message.parse_entities([MessageEntity.BOT_COMMAND]).items(),
+        key=(lambda item: item[0].offset),
+    ):
         message_txt = message_txt.replace(text, '').strip()
 
     return message_txt if len(message_txt) > 0 else ''
@@ -35,9 +36,13 @@ async def is_user_in_group(update: Update, context: CallbackContext, user_id: in
     """
     try:
         chat_member = await context.bot.get_chat_member(update.message.chat_id, user_id)
-        return chat_member.status in [ChatMember.OWNER, ChatMember.ADMINISTRATOR, ChatMember.MEMBER]
+        return chat_member.status in [
+            ChatMember.OWNER,
+            ChatMember.ADMINISTRATOR,
+            ChatMember.MEMBER,
+        ]
     except telegram.error.BadRequest as e:
-        if str(e) == "User not found":
+        if str(e) == 'User not found':
             return False
         else:
             raise e
@@ -60,10 +65,8 @@ def get_stream_cutoff_values(update: Update, content: str) -> int:
     """
     if is_group_chat(update):
         # group chats have stricter flood limits
-        return 180 if len(content) > 1000 else 120 if len(content) > 200 \
-            else 90 if len(content) > 50 else 50
-    return 90 if len(content) > 1000 else 45 if len(content) > 200 \
-        else 25 if len(content) > 50 else 15
+        return 180 if len(content) > 1000 else 120 if len(content) > 200 else 90 if len(content) > 50 else 50
+    return 90 if len(content) > 1000 else 45 if len(content) > 200 else 25 if len(content) > 50 else 15
 
 
 def is_group_chat(update: Update) -> bool:
@@ -74,7 +77,7 @@ def is_group_chat(update: Update) -> bool:
         return False
     return update.effective_chat.type in [
         constants.ChatType.GROUP,
-        constants.ChatType.SUPERGROUP
+        constants.ChatType.SUPERGROUP,
     ]
 
 
@@ -82,11 +85,16 @@ def split_into_chunks(text: str, chunk_size: int = 4096) -> list[str]:
     """
     Splits a string into chunks of a given size.
     """
-    return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
-async def wrap_with_indicator(update: Update, context: CallbackContext, coroutine,
-                              chat_action: constants.ChatAction = "", is_inline=False):
+async def wrap_with_indicator(
+    update: Update,
+    context: CallbackContext,
+    coroutine,
+    chat_action: constants.ChatAction = '',
+    is_inline=False,
+):
     """
     Wraps a coroutine while repeatedly sending a chat action to the user.
     """
@@ -102,8 +110,14 @@ async def wrap_with_indicator(update: Update, context: CallbackContext, coroutin
             pass
 
 
-async def edit_message_with_retry(context: ContextTypes.DEFAULT_TYPE, chat_id: int | None,
-                                  message_id: str, text: str, markdown: bool = True, is_inline: bool = False):
+async def edit_message_with_retry(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int | None,
+    message_id: str,
+    text: str,
+    markdown: bool = True,
+    is_inline: bool = False,
+):
     """
     Edit a message with retry logic in case of failure (e.g. broken markdown)
     :param context: The context to use
@@ -123,7 +137,7 @@ async def edit_message_with_retry(context: ContextTypes.DEFAULT_TYPE, chat_id: i
             parse_mode=constants.ParseMode.MARKDOWN if markdown else None,
         )
     except telegram.error.BadRequest as e:
-        if str(e).startswith("Message is not modified"):
+        if str(e).startswith('Message is not modified'):
             return
         try:
             await context.bot.edit_message_text(
@@ -172,8 +186,7 @@ async def is_allowed(config, update: Update, context: CallbackContext, is_inline
             if await is_user_in_group(update, context, user):
                 logging.info(f'{user} is a member. Allowing group chat message...')
                 return True
-        logging.info(f'Group chat messages from user {name} '
-                     f'(id: {user_id}) are not allowed')
+        logging.info(f'Group chat messages from user {name} ' f'(id: {user_id}) are not allowed')
     return False
 
 
@@ -212,8 +225,10 @@ def get_user_budget(config, user_id) -> float | None:
     if config['allowed_user_ids'] == '*':
         # same budget for all users, use value in first position of budget list
         if len(user_budgets) > 1:
-            logging.warning('multiple values for budgets set with unrestricted user list '
-                            'only the first value is used as budget for everyone.')
+            logging.warning(
+                'multiple values for budgets set with unrestricted user list '
+                'only the first value is used as budget for everyone.'
+            )
         return float(user_budgets[0])
 
     allowed_user_ids = config['allowed_user_ids'].split(',')
@@ -237,9 +252,9 @@ def get_remaining_budget(config, usage, update: Update, is_inline=False) -> floa
     """
     # Mapping of budget period to cost period
     budget_cost_map = {
-        "monthly": "cost_month",
-        "daily": "cost_today",
-        "all-time": "cost_all_time"
+        'monthly': 'cost_month',
+        'daily': 'cost_today',
+        'all-time': 'cost_all_time',
     }
 
     user_id = update.inline_query.from_user.id if is_inline else update.message.from_user.id
@@ -296,7 +311,7 @@ def add_chat_request_to_usage_tracker(usage, config, user_id, used_tokens):
         # add guest chat request to guest usage tracker
         allowed_user_ids = config['allowed_user_ids'].split(',')
         if str(user_id) not in allowed_user_ids and 'guests' in usage:
-            usage["guests"].add_chat_tokens(used_tokens, config['token_price'])
+            usage['guests'].add_chat_tokens(used_tokens, config['token_price'])
     except Exception as e:
         logging.warning(f'Failed to add tokens to usage_logs: {str(e)}')
         pass
@@ -320,7 +335,7 @@ def is_direct_result(response: any) -> bool:
     :param response: The response value
     :return: Boolean indicating if the result is a direct result
     """
-    if type(response) is not dict:
+    if not isinstance(response, dict):
         try:
             json_response = json.loads(response)
             return json_response.get('direct_result', False)
@@ -334,7 +349,7 @@ async def handle_direct_result(config, update: Update, response: any):
     """
     Handles a direct result from a plugin
     """
-    if type(response) is not dict:
+    if not isinstance(response, dict):
         response = json.loads(response)
 
     result = response['direct_result']
@@ -368,7 +383,7 @@ def cleanup_intermediate_files(response: any):
     """
     Deletes intermediate files created by plugins
     """
-    if type(response) is not dict:
+    if not isinstance(response, dict):
         response = json.loads(response)
 
     result = response['direct_result']
@@ -385,6 +400,7 @@ def encode_image(fileobj):
     image = base64.b64encode(fileobj.getvalue()).decode('utf-8')
     return f'data:image/jpeg;base64,{image}'
 
+
 def decode_image(imgbase64):
-    image = imgbase64[len('data:image/jpeg;base64,'):]
+    image = imgbase64[len('data:image/jpeg;base64,') :]
     return base64.b64decode(image)

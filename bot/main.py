@@ -2,9 +2,8 @@ import logging
 import os
 
 from dotenv import load_dotenv
-
+from openai_helper import OpenAIHelper, are_functions_available, default_max_tokens
 from plugin_manager import PluginManager
-from openai_helper import OpenAIHelper, default_max_tokens, are_functions_available
 from telegram_bot import ChatGPTTelegramBot
 
 
@@ -15,9 +14,9 @@ def main():
     # Setup logging
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
+        level=logging.INFO,
     )
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
 
     # Check if the required environment variables are set
     required_values = ['TELEGRAM_BOT_TOKEN', 'OPENAI_API_KEY']
@@ -54,7 +53,8 @@ def main():
         'show_plugins_used': os.environ.get('SHOW_PLUGINS_USED', 'false').lower() == 'true',
         'whisper_prompt': os.environ.get('WHISPER_PROMPT', ''),
         'vision_model': os.environ.get('VISION_MODEL', 'gpt-4-vision-preview'),
-        'enable_vision_follow_up_questions': os.environ.get('ENABLE_VISION_FOLLOW_UP_QUESTIONS', 'true').lower() == 'true',
+        'enable_vision_follow_up_questions': os.environ.get('ENABLE_VISION_FOLLOW_UP_QUESTIONS', 'true').lower()
+        == 'true',
         'vision_prompt': os.environ.get('VISION_PROMPT', 'What is in this image'),
         'vision_detail': os.environ.get('VISION_DETAIL', 'auto'),
         'vision_max_tokens': int(os.environ.get('VISION_MAX_TOKENS', '300')),
@@ -63,15 +63,21 @@ def main():
     }
 
     if openai_config['enable_functions'] and not functions_available:
-        logging.error(f'ENABLE_FUNCTIONS is set to true, but the model {model} does not support it. '
-                        'Please set ENABLE_FUNCTIONS to false or use a model that supports it.')
+        logging.error(
+            f'ENABLE_FUNCTIONS is set to true, but the model {model} does not support it. '
+            'Please set ENABLE_FUNCTIONS to false or use a model that supports it.'
+        )
         exit(1)
     if os.environ.get('MONTHLY_USER_BUDGETS') is not None:
-        logging.warning('The environment variable MONTHLY_USER_BUDGETS is deprecated. '
-                        'Please use USER_BUDGETS with BUDGET_PERIOD instead.')
+        logging.warning(
+            'The environment variable MONTHLY_USER_BUDGETS is deprecated. '
+            'Please use USER_BUDGETS with BUDGET_PERIOD instead.'
+        )
     if os.environ.get('MONTHLY_GUEST_BUDGET') is not None:
-        logging.warning('The environment variable MONTHLY_GUEST_BUDGET is deprecated. '
-                        'Please use GUEST_BUDGET with BUDGET_PERIOD instead.')
+        logging.warning(
+            'The environment variable MONTHLY_GUEST_BUDGET is deprecated. '
+            'Please use GUEST_BUDGET with BUDGET_PERIOD instead.'
+        )
 
     telegram_config = {
         'token': os.environ['TELEGRAM_BOT_TOKEN'],
@@ -93,18 +99,16 @@ def main():
         'ignore_group_vision': os.environ.get('IGNORE_GROUP_VISION', 'true').lower() == 'true',
         'group_trigger_keyword': os.environ.get('GROUP_TRIGGER_KEYWORD', ''),
         'token_price': float(os.environ.get('TOKEN_PRICE', 0.002)),
-        'image_prices': [float(i) for i in os.environ.get('IMAGE_PRICES', "0.016,0.018,0.02").split(",")],
+        'image_prices': [float(i) for i in os.environ.get('IMAGE_PRICES', '0.016,0.018,0.02').split(',')],
         'vision_token_price': float(os.environ.get('VISION_TOKEN_PRICE', '0.01')),
-        'image_receive_mode': os.environ.get('IMAGE_FORMAT', "photo"),
+        'image_receive_mode': os.environ.get('IMAGE_FORMAT', 'photo'),
         'tts_model': os.environ.get('TTS_MODEL', 'tts-1'),
-        'tts_prices': [float(i) for i in os.environ.get('TTS_PRICES', "0.015,0.030").split(",")],
+        'tts_prices': [float(i) for i in os.environ.get('TTS_PRICES', '0.015,0.030').split(',')],
         'transcription_price': float(os.environ.get('TRANSCRIPTION_PRICE', 0.006)),
         'bot_language': os.environ.get('BOT_LANGUAGE', 'en'),
     }
 
-    plugin_config = {
-        'plugins': os.environ.get('PLUGINS', '').split(',')
-    }
+    plugin_config = {'plugins': os.environ.get('PLUGINS', '').split(',')}
 
     # Setup and run ChatGPT and Telegram bot
     plugin_manager = PluginManager(config=plugin_config)
