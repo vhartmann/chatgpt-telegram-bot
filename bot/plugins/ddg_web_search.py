@@ -118,7 +118,7 @@ class DDGWebSearchPlugin(Plugin):
             results = list(islice(ddgs_gen, 3))
 
             if results is None or len(results) == 0:
-                return {'Result': 'No good DuckDuckGo Search Result was found'}
+                return {'result': 'No good DuckDuckGo Search Result was found'}
 
             def to_metadata(result: Dict) -> Dict[str, str]:
                 return {

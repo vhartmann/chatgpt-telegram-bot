@@ -346,7 +346,8 @@ class OpenAIHelper:
             )
             return function_response, plugins_used
 
-        self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=function_response)
+        json_func_response = json.dumps(function_response, default=str)
+        self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=json_func_response)
         response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=self.conversations[chat_id],

@@ -1,5 +1,5 @@
+import io
 import logging
-import re
 from typing import Dict
 
 from pytube import YouTube
@@ -38,9 +38,9 @@ class YouTubeAudioExtractorPlugin(Plugin):
         try:
             video = YouTube(link)
             audio = video.streams.filter(only_audio=True, file_extension='mp4').first()
-            output = re.sub(r'[^\w\-_\. ]', '_', video.title) + '.mp3'
-            audio.download(filename=output)
-            return {'direct_result': {'kind': 'file', 'format': 'path', 'value': output}}
+            file_obj = io.BytesIO()
+            audio.stream_to_buffer(file_obj)
+            return {'direct_result': {'kind': 'file', 'format': 'path', 'value': file_obj}}
         except Exception as e:
             logging.warning(f'Failed to extract audio from YouTube video: {str(e)}')
             return {'result': 'Failed to extract audio'}
