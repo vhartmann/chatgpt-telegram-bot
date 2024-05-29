@@ -16,6 +16,7 @@ from plugins.whois_ import WhoisPlugin
 from plugins.wolfram_alpha import WolframAlphaPlugin
 from plugins.worldtimeapi import WorldTimeApiPlugin
 from plugins.youtube_audio_extractor import YouTubeAudioExtractorPlugin
+from plugins.youtube_transcript import YoutubeTranscriptPlugin
 
 
 class PluginManager:
@@ -41,6 +42,7 @@ class PluginManager:
             'webshot': WebshotPlugin,
             'iplocation': IpLocationPlugin,
             'website_content': WebsiteContentPlugin,
+            'youtube_transcript': YoutubeTranscriptPlugin,
         }
         self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
 
