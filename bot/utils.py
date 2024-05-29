@@ -362,8 +362,10 @@ async def handle_direct_result(config, update: Update, response: any):
 
     if kind == 'photo':
         await update.effective_message.reply_photo(**common_args, photo=value)
-    elif kind == 'gif' or kind == 'file':
+    elif kind in {'gif', 'file'}:
         await update.effective_message.reply_document(**common_args, document=value)
+    elif kind == 'voice':
+        await update.effective_message.reply_voice(**common_args, voice=value)
     elif kind == 'dice':
         await update.effective_message.reply_dice(**common_args, emoji=value)
 

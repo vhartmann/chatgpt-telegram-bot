@@ -41,4 +41,4 @@ class GTTSTextToSpeech(Plugin):
         tts = gTTS(kwargs['text'], lang=kwargs.get('lang', 'en'))
         file_obj = io.BytesIO()
         tts.write_to_fp(file_obj)
-        return {'direct_result': {'kind': 'file', 'value': file_obj}}
+        return {'direct_result': {'kind': 'voice', 'value': file_obj}}
