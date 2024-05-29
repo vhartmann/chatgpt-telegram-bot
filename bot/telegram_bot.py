@@ -241,6 +241,15 @@ class ChatGPTTelegramBot:
                 or not await self.check_allowed_and_within_budget(update, context):
             return
 
+        if not is_admin(self.config, update.message.from_user.id):
+            await update.effective_message.reply_text(
+                message_thread_id=get_thread_id(update),
+                reply_to_message_id=get_reply_to_message_id(self.config, update),
+                text="Ну губа у тебя конечно не дура. Ген картинок дорогой",
+                parse_mode=constants.ParseMode.MARKDOWN
+            )
+            return
+
         image_query = message_text(update.message)
         if image_query == '':
             await update.effective_message.reply_text(
@@ -843,7 +852,7 @@ class ChatGPTTelegramBot:
                 title=localized_text("ask_chatgpt", bot_language),
                 input_message_content=InputTextMessageContent(message_content),
                 description=message_content,
-                thumb_url='https://user-images.githubusercontent.com/11541888/223106202-7576ff11-2c8e-408d-94ea'
+                thumbnail_url='https://user-images.githubusercontent.com/11541888/223106202-7576ff11-2c8e-408d-94ea'
                           '-b02a7a32149a.png',
                 reply_markup=reply_markup
             )
