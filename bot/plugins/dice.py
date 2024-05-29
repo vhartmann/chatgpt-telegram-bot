@@ -35,7 +35,6 @@ class DicePlugin(Plugin):
         return {
             'direct_result': {
                 'kind': 'dice',
-                'format': 'dice',
                 'value': kwargs.get('emoji', '🎲'),
             }
         }

@@ -1,5 +1,3 @@
-import logging
-import tempfile
 from typing import Dict
 
 from .plugin import Plugin
@@ -33,11 +31,7 @@ class AutoTextToSpeech(Plugin):
 
     async def execute(self, function_name, helper, **kwargs) -> Dict:
         try:
-            bytes, text_length = await helper.generate_speech(text=kwargs['text'])
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.opus') as temp_file:
-                temp_file.write(bytes.getvalue())
-                temp_file_path = temp_file.name
+            data, _ = await helper.generate_speech(text=kwargs['text'])
+            return {'direct_result': {'kind': 'file', 'value': data}}
         except Exception as e:
-            logging.exception(e)
             return {'Result': 'Exception: ' + str(e)}
-        return {'direct_result': {'kind': 'file', 'format': 'path', 'value': temp_file_path}}

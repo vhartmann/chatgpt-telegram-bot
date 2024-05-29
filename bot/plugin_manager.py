@@ -1,11 +1,9 @@
 import json
 
 from plugins.auto_tts import AutoTextToSpeech
-from plugins.crypto import CryptoPlugin
 from plugins.ddg_image_search import DDGImageSearchPlugin
 from plugins.ddg_translate import DDGTranslatePlugin
 from plugins.ddg_web_search import DDGWebSearchPlugin
-from plugins.deepl import DeeplTranslatePlugin
 from plugins.dice import DicePlugin
 from plugins.gtts_text_to_speech import GTTSTextToSpeech
 from plugins.iplocation import IpLocationPlugin
@@ -28,7 +26,6 @@ class PluginManager:
         plugin_mapping = {
             'wolfram': WolframAlphaPlugin,
             'weather': WeatherPlugin,
-            'crypto': CryptoPlugin,
             'ddg_web_search': DDGWebSearchPlugin,
             'ddg_translate': DDGTranslatePlugin,
             'ddg_image_search': DDGImageSearchPlugin,
@@ -36,7 +33,6 @@ class PluginManager:
             'worldtimeapi': WorldTimeApiPlugin,
             'youtube_audio_extractor': YouTubeAudioExtractorPlugin,
             'dice': DicePlugin,
-            'deepl_translate': DeeplTranslatePlugin,
             'gtts_text_to_speech': GTTSTextToSpeech,
             'auto_tts': AutoTextToSpeech,
             'whois': WhoisPlugin,

@@ -383,10 +383,10 @@ class OpenAIHelper:
         except Exception as e:
             raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
 
-    async def generate_speech(self, text: str) -> tuple[any, int]:
+    async def generate_speech(self, text: str) -> tuple[io.BytesIO, int]:
         """
-        Generates an audio from the given text using TTS model.
-        :param prompt: The text to send to the model
+        Generates an audio from the given text using a TTS model.
+        :param text: The text to send to the model
         :return: The audio in bytes and the text size
         """
         bot_language = self.config['bot_language']
@@ -406,11 +406,12 @@ class OpenAIHelper:
             raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
 
     async def transcribe(self, filename):
+        # FIXME do not use filename; use fileobj instead
         """
         Transcribes the audio file using the Whisper model.
         """
         try:
-            with open(filename, 'rb') as audio:
+            with open(filename, 'rb') as audio:  # noqa: ASYNC101
                 prompt_text = self.config['whisper_prompt']
                 result = await self.client.audio.transcriptions.create(
                     model='whisper-1', file=audio, prompt=prompt_text
@@ -749,26 +750,3 @@ class OpenAIHelper:
             return num_tokens
         else:
             raise NotImplementedError(f"""unknown parameter detail={detail} for model {model}.""")
-
-    # No longer works as of July 21st 2023, as OpenAI has removed the billing API
-    # def get_billing_current_month(self):
-    #     """Gets billed usage for current month from OpenAI API.
-    #
-    #     :return: dollar amount of usage this month
-    #     """
-    #     headers = {
-    #         "Authorization": f"Bearer {openai.api_key}"
-    #     }
-    #     # calculate first and last day of current month
-    #     today = date.today()
-    #     first_day = date(today.year, today.month, 1)
-    #     _, last_day_of_month = monthrange(today.year, today.month)
-    #     last_day = date(today.year, today.month, last_day_of_month)
-    #     params = {
-    #         "start_date": first_day,
-    #         "end_date": last_day
-    #     }
-    #     response = requests.get("https://api.openai.com/dashboard/billing/usage", headers=headers, params=params)
-    #     billing_data = json.loads(response.text)
-    #     usage_month = billing_data["total_usage"] / 100  # convert cent amount to dollars
-    #     return usage_month

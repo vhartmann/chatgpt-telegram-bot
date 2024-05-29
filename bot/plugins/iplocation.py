@@ -1,6 +1,6 @@
 from typing import Dict
 
-import requests
+import httpx
 
 from .plugin import Plugin
 
@@ -27,20 +27,24 @@ class IpLocationPlugin(Plugin):
         ]
 
     async def execute(self, function_name, helper, **kwargs) -> Dict:
-        ip = kwargs.get('ip')
-        BASE_URL = 'https://api.ip.fm/?ip={}'
-        url = BASE_URL.format(ip)
         try:
-            response = requests.get(url)
-            response_data = response.json()
-            country = response_data.get('data', {}).get('country', 'None')
-            subdivisions = response_data.get('data', {}).get('subdivisions', 'None')
-            city = response_data.get('data', {}).get('city', 'None')
+            ip = kwargs.get('ip')
+            if not ip:
+                return {'Error': 'IP address not provided'}
+
+            url = f'https://api.ip.fm/?ip={ip}'
+
+            async with httpx.AsyncClient() as client:
+                response = (await client.get(url)).json()
+
+            country = response.get('data', {}).get('country', 'None')
+            subdivisions = response.get('data', {}).get('subdivisions', 'None')
+            city = response.get('data', {}).get('city', 'None')
             location = ', '.join(filter(None, [country, subdivisions, city])) or 'None'
 
-            asn = response_data.get('data', {}).get('asn', 'None')
-            as_name = response_data.get('data', {}).get('as_name', 'None')
-            as_domain = response_data.get('data', {}).get('as_domain', 'None')
+            asn = response.get('data', {}).get('asn', 'None')
+            as_name = response.get('data', {}).get('as_name', 'None')
+            as_domain = response.get('data', {}).get('as_domain', 'None')
             return {
                 'Location': location,
                 'ASN': asn,

@@ -34,7 +34,6 @@ from telegram.ext import (
 from usage_tracker import UsageTracker
 from utils import (
     add_chat_request_to_usage_tracker,
-    cleanup_intermediate_files,
     edit_message_with_retry,
     error_handler,
     get_remaining_budget,
@@ -455,6 +454,7 @@ class ChatGPTTelegramBot:
 
             try:
                 audio_track = AudioSegment.from_file(filename)
+                # FIXME do not save to file
                 audio_track.export(filename_mp3, format='mp3')
                 logging.info(
                     f'New transcribe request received from user {update.message.from_user.name} '
@@ -1022,7 +1022,6 @@ class ChatGPTTelegramBot:
                     backoff = 0
                     async for content, tokens in stream_response:
                         if is_direct_result(content):
-                            cleanup_intermediate_files(content)
                             await edit_message_with_retry(
                                 context,
                                 chat_id=None,
@@ -1102,7 +1101,6 @@ class ChatGPTTelegramBot:
                         response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query)
 
                         if is_direct_result(response):
-                            cleanup_intermediate_files(response)
                             await edit_message_with_retry(
                                 context,
                                 chat_id=None,

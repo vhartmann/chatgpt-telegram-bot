@@ -5,7 +5,6 @@ import base64
 import itertools
 import json
 import logging
-import os
 
 import telegram
 from telegram import ChatMember, Message, MessageEntity, Update, constants
@@ -354,7 +353,6 @@ async def handle_direct_result(config, update: Update, response: any):
 
     result = response['direct_result']
     kind = result['kind']
-    format = result['format']
     value = result['value']
 
     common_args = {
@@ -363,36 +361,11 @@ async def handle_direct_result(config, update: Update, response: any):
     }
 
     if kind == 'photo':
-        if format == 'url':
-            await update.effective_message.reply_photo(**common_args, photo=value)
-        elif format == 'path':
-            await update.effective_message.reply_photo(**common_args, photo=open(value, 'rb'))
+        await update.effective_message.reply_photo(**common_args, photo=value)
     elif kind == 'gif' or kind == 'file':
-        if format == 'url':
-            await update.effective_message.reply_document(**common_args, document=value)
-        if format == 'path':
-            await update.effective_message.reply_document(**common_args, document=open(value, 'rb'))
+        await update.effective_message.reply_document(**common_args, document=value)
     elif kind == 'dice':
         await update.effective_message.reply_dice(**common_args, emoji=value)
-
-    if format == 'path':
-        cleanup_intermediate_files(response)
-
-
-def cleanup_intermediate_files(response: any):
-    """
-    Deletes intermediate files created by plugins
-    """
-    if not isinstance(response, dict):
-        response = json.loads(response)
-
-    result = response['direct_result']
-    format = result['format']
-    value = result['value']
-
-    if format == 'path':
-        if os.path.exists(value):
-            os.remove(value)
 
 
 # Function to encode the image

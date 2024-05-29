@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from typing import Dict
 
-import requests
+import httpx
 
 from .plugin import Plugin
 
@@ -45,10 +45,14 @@ class WorldTimeApiPlugin(Plugin):
         url = f'https://worldtimeapi.org/api/timezone/{timezone}'
 
         try:
-            wtr = requests.get(url).json().get('datetime')
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url)
+                wtr = response.json().get('datetime')
+
             wtr_obj = datetime.strptime(wtr, '%Y-%m-%dT%H:%M:%S.%f%z')
             time_24hr = wtr_obj.strftime('%H:%M:%S')
             time_12hr = wtr_obj.strftime('%I:%M:%S %p')
+
             return {'24hr': time_24hr, '12hr': time_12hr}
         except:
             return {'result': 'No result was found'}

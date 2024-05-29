@@ -136,7 +136,6 @@ class DDGImageSearchPlugin(Plugin):
             return {
                 'direct_result': {
                     'kind': image_type,
-                    'format': 'url',
                     'value': results[0]['image'],
                 }
             }

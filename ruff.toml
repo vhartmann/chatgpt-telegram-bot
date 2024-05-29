@@ -1,9 +1,9 @@
 
 line-length = 120
-target-version = "py312"
+target-version = "py39"
 
 [lint]
-extend-select = ["F", "I", "Q"]
+extend-select = ["F", "I", "Q", "B", "ASYNC"]
 ignore = ["E722"]
 
 [format]

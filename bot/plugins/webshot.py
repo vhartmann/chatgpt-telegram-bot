@@ -1,9 +1,8 @@
-import os
 import random
 import string
 from typing import Dict
 
-import requests
+import httpx
 
 from .plugin import Plugin
 
@@ -42,31 +41,20 @@ class WebshotPlugin(Plugin):
         try:
             image_url = f'https://image.thum.io/get/maxAge/12/width/720/{kwargs["url"]}'
 
-            # preload url first
-            requests.get(image_url)
+            async with httpx.AsyncClient() as client:
+                await client.get(image_url)
 
-            # download the actual image
-            response = requests.get(image_url, timeout=30)
+                # download the actual image
+                response = await client.get(image_url, timeout=30)
 
             if response.status_code == 200:
-                if not os.path.exists('uploads/webshot'):
-                    os.makedirs('uploads/webshot')
-
-                image_file_path = os.path.join('uploads/webshot', f'{self.generate_random_string(15)}.png')
-                with open(image_file_path, 'wb') as f:
-                    f.write(response.content)
-
                 return {
                     'direct_result': {
                         'kind': 'photo',
-                        'format': 'path',
-                        'value': image_file_path,
+                        'value': response.content,
                     }
                 }
             else:
                 return {'result': 'Unable to screenshot website'}
         except:
-            if 'image_file_path' in locals():
-                os.remove(image_file_path)
-
             return {'result': 'Unable to screenshot website'}
