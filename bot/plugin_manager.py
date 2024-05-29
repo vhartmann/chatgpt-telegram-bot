@@ -11,6 +11,7 @@ from plugins.iplocation import IpLocationPlugin
 from plugins.spotify import SpotifyPlugin
 from plugins.weather import WeatherPlugin
 from plugins.webshot import WebshotPlugin
+from plugins.website_content import WebsiteContentPlugin
 from plugins.whois_ import WhoisPlugin
 from plugins.wolfram_alpha import WolframAlphaPlugin
 from plugins.worldtimeapi import WorldTimeApiPlugin
@@ -39,6 +40,7 @@ class PluginManager:
             'whois': WhoisPlugin,
             'webshot': WebshotPlugin,
             'iplocation': IpLocationPlugin,
+            'website_content': WebsiteContentPlugin,
         }
         self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
 
