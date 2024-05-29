@@ -374,11 +374,9 @@ class UsageTracker:
         total_tokens = sum(self.usage['usage_history']['chat_tokens'].values())
         token_cost = round(total_tokens * tokens_price / 1000, 6)
 
-        total_images = [
-            sum(values) for values in zip(*self.usage['usage_history']['number_images'].values(), strict=False)
-        ]
+        total_images = [sum(values) for values in zip(*self.usage['usage_history']['number_images'].values())]
         image_prices_list = [float(x) for x in image_prices.split(',')]
-        image_cost = sum([count * price for count, price in zip(total_images, image_prices_list, strict=False)])
+        image_cost = sum([count * price for count, price in zip(total_images, image_prices_list)])
 
         total_transcription_seconds = sum(self.usage['usage_history']['transcription_seconds'].values())
         transcription_cost = round(total_transcription_seconds * minute_price / 60, 2)
@@ -391,7 +389,7 @@ class UsageTracker:
         ]
         tts_prices_list = [float(x) for x in tts_prices.split(',')]
         tts_cost = round(
-            sum([count * price / 1000 for count, price in zip(total_characters, tts_prices_list, strict=False)]),
+            sum([count * price / 1000 for count, price in zip(total_characters, tts_prices_list)]),
             2,
         )
 
