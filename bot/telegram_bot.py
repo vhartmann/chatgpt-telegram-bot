@@ -119,20 +119,28 @@ class ChatGPTTelegramBot:
     def get_thread_id(self, update: Update) -> str:
         c = update.effective_chat.id
         m = update.effective_message
-        if not m or not m:
+        if not m or not m.reply_to_message:
             return f'{c}'
 
-        self.replies_tracker[m.id] = self.replies_tracker[m.id] if m.id in self.replies_tracker else m.id
+        self.replies_tracker[m.id] = (
+            self.replies_tracker[m.reply_to_message.id]
+            if m.reply_to_message.id in self.replies_tracker
+            else m.reply_to_message.id
+        )
 
         thread_id = self.replies_tracker[m.id]
         return f'{c}_{thread_id}'
 
     def get_real_thread_id(self, update: Update) -> Optional[int]:
         m = update.effective_message
-        if not m:
+        if not m or not m.reply_to_message:
             return None
 
-        self.replies_tracker[m.id] = self.replies_tracker[m.id] if m.id in self.replies_tracker else m.id
+        self.replies_tracker[m.id] = (
+            self.replies_tracker[m.reply_to_message.id]
+            if m.reply_to_message.id in self.replies_tracker
+            else m.reply_to_message.id
+        )
 
         return self.replies_tracker[m.id]
 
