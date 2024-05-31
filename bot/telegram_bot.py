@@ -312,10 +312,11 @@ class ChatGPTTelegramBot:
 
         reset_content = message_text(update.message)
         self.openai.reset_chat_history(chat_id=ai_context_id, content=reset_content)
-        await update.effective_message.reply_text(
+        sent_msg = await update.effective_message.reply_text(
             message_thread_id=get_forum_thread_id(update),
             text=localized_text('reset_done', self.config['bot_language']),
         )
+        self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
 
     async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -407,10 +408,11 @@ class ChatGPTTelegramBot:
             try:
                 speech_file, text_length = await self.openai.generate_speech(text=tts_query)
 
-                await update.effective_message.reply_voice(
+                sent_msg = await update.effective_message.reply_voice(
                     reply_to_message_id=get_reply_to_message_id(self.config, update),
                     voice=speech_file,
                 )
+                self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                 speech_file.close()
                 # add image request to users usage tracker
                 user_id = update.message.from_user.id
@@ -454,7 +456,7 @@ class ChatGPTTelegramBot:
                 await media_file.download_to_drive(filename)
             except Exception as e:
                 logging.exception(e)
-                await update.effective_message.reply_text(
+                sent_msg = await update.effective_message.reply_text(
                     message_thread_id=get_forum_thread_id(update),
                     reply_to_message_id=get_reply_to_message_id(self.config, update),
                     text=(
@@ -463,6 +465,7 @@ class ChatGPTTelegramBot:
                     ),
                     parse_mode=constants.ParseMode.MARKDOWN,
                 )
+                self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                 return
 
             try:
@@ -511,12 +514,13 @@ class ChatGPTTelegramBot:
                     chunks = split_into_chunks(transcript_output)
 
                     for index, transcript_chunk in enumerate(chunks):
-                        await update.effective_message.reply_text(
+                        sent_msg = await update.effective_message.reply_text(
                             message_thread_id=get_forum_thread_id(update),
                             reply_to_message_id=get_reply_to_message_id(self.config, update) if index == 0 else None,
                             text=transcript_chunk,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
+                        self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                 else:
                     # Get the response of the transcript
                     response, total_tokens = await self.openai.get_chat_response(
@@ -535,12 +539,13 @@ class ChatGPTTelegramBot:
                     chunks = split_into_chunks(transcript_output)
 
                     for index, transcript_chunk in enumerate(chunks):
-                        await update.effective_message.reply_text(
+                        sent_msg = await update.effective_message.reply_text(
                             message_thread_id=get_forum_thread_id(update),
                             reply_to_message_id=get_reply_to_message_id(self.config, update) if index == 0 else None,
                             text=transcript_chunk,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
+                        self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
 
             except Exception as e:
                 logging.exception(e)
@@ -662,6 +667,7 @@ class ChatGPTTelegramBot:
                                     message_thread_id=get_forum_thread_id(update),
                                     text=content if len(content) > 0 else '...',
                                 )
+                                self.replies_tracker[sent_message.message_id] = get_forum_thread_id(update)
                             except:
                                 pass
                             continue
@@ -681,6 +687,7 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=content,
                             )
+                            self.replies_tracker[sent_message.message_id] = get_forum_thread_id(update)
                         except:
                             continue
 
@@ -724,19 +731,21 @@ class ChatGPTTelegramBot:
                     )
 
                     try:
-                        await update.effective_message.reply_text(
+                        sent_msg = await update.effective_message.reply_text(
                             message_thread_id=get_forum_thread_id(update),
                             reply_to_message_id=get_reply_to_message_id(self.config, update),
                             text=interpretation,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
+                        self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                     except BadRequest:
                         try:
-                            await update.effective_message.reply_text(
+                            sent_msg = await update.effective_message.reply_text(
                                 message_thread_id=get_forum_thread_id(update),
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=interpretation,
                             )
+                            self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                         except Exception as e:
                             logging.exception(e)
                             await update.effective_message.reply_text(
@@ -844,6 +853,7 @@ class ChatGPTTelegramBot:
                                     message_thread_id=get_forum_thread_id(update),
                                     text=content if len(content) > 0 else '...',
                                 )
+                                self.replies_tracker[sent_message.message_id] = get_forum_thread_id(update)
                             except:
                                 pass
                             continue
@@ -863,6 +873,7 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=content,
                             )
+                            self.replies_tracker[sent_message.message_id] = get_forum_thread_id(update)
                         except:
                             continue
 
@@ -913,7 +924,7 @@ class ChatGPTTelegramBot:
 
                     for index, chunk in enumerate(chunks):
                         try:
-                            await update.effective_message.reply_text(
+                            sent_msg = await update.effective_message.reply_text(
                                 message_thread_id=get_forum_thread_id(update),
                                 reply_to_message_id=get_reply_to_message_id(self.config, update)
                                 if index == 0
@@ -921,15 +932,17 @@ class ChatGPTTelegramBot:
                                 text=chunk,
                                 parse_mode=constants.ParseMode.MARKDOWN,
                             )
+                            self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                         except Exception:
                             try:
-                                await update.effective_message.reply_text(
+                                sent_msg = await update.effective_message.reply_text(
                                     message_thread_id=get_forum_thread_id(update),
                                     reply_to_message_id=get_reply_to_message_id(self.config, update)
                                     if index == 0
                                     else None,
                                     text=chunk,
                                 )
+                                self.replies_tracker[sent_msg.message_id] = get_forum_thread_id(update)
                             except Exception as exception:
                                 raise exception
 
