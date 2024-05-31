@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import os
+from typing import Optional
 
 import httpx
 import openai
@@ -134,20 +135,59 @@ class OpenAIHelper:
         """
         http_client = httpx.AsyncClient(proxies=config['proxy']) if 'proxy' in config else None
         self.client = openai.AsyncOpenAI(api_key=config['api_key'], http_client=http_client)
+
+        self.db_pool = None
+
         self.config = config
         self.plugin_manager = plugin_manager
         self.conversations: dict[int:list] = {}  # {chat_id: history}
         self.conversations_vision: dict[int:bool] = {}  # {chat_id: is_vision}
         self.last_updated: dict[int:datetime] = {}  # {chat_id: last_update_timestamp}
 
-    def get_conversation_stats(self, chat_id: int) -> tuple[int, int]:
+    async def init_conv_in_db(self, chat_id: str) -> None:
+        if chat_id.split('_')[0] not in self.config['allowed_chat_ids_to_track']:
+            logging.debug(f'Chat ID {chat_id} is not allowed to be tracked')
+            return
+
+        async with self.db_pool.acquire() as conn:
+            await conn.execute(f'DROP TABLE IF EXISTS "{chat_id}"')  # взлом жопы
+
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS "{chat_id}" (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    role TEXT NOT NULL,
+                    name TEXT,
+                    content TEXT NOT NULL
+                )
+                """
+            )
+
+        logging.debug(f'Chat ID {chat_id} is now being tracked')
+
+    async def add_conv_in_db(self, chat_id: str, role: str, content: str, name: Optional[str] = None) -> None:
+        if chat_id.split('_')[0] not in self.config['allowed_chat_ids_to_track']:
+            logging.debug(f'Chat ID {chat_id} is not allowed to be tracked')
+            return
+
+        async with self.db_pool.acquire() as conn:
+            prepared = await conn.prepare(f"""
+                INSERT INTO "{chat_id}" (role, name, content)
+                VALUES ($1, $2, $3)
+                """)
+            await prepared.fetchval(role, name, content)
+
+        logging.debug(f'Added message to chat ID {chat_id} history')
+
+    async def get_conversation_stats(self, chat_id: int) -> tuple[int, int]:
         """
         Gets the number of messages and tokens used in the conversation.
         :param chat_id: The chat ID
         :return: A tuple containing the number of messages and tokens used
         """
         if chat_id not in self.conversations:
-            self.reset_chat_history(chat_id)
+            await self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
     async def get_chat_response(self, chat_id: str, query: str) -> tuple[str, str]:
@@ -170,13 +210,13 @@ class OpenAIHelper:
             for index, choice in enumerate(response.choices):
                 content = choice.message.content.strip()
                 if index == 0:
-                    self.__add_to_history(chat_id, role='assistant', content=content)
+                    await self.__add_to_history(chat_id, role='assistant', content=content)
                 answer += f'{index + 1}\u20e3\n'
                 answer += content
                 answer += '\n\n'
         else:
             answer = response.choices[0].message.content.strip()
-            self.__add_to_history(chat_id, role='assistant', content=answer)
+            await self.__add_to_history(chat_id, role='assistant', content=answer)
 
         bot_language = self.config['bot_language']
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
@@ -219,7 +259,7 @@ class OpenAIHelper:
                 answer += delta.content
                 yield answer, 'not_finished'
         answer = answer.strip()
-        self.__add_to_history(chat_id, role='assistant', content=answer)
+        await self.__add_to_history(chat_id, role='assistant', content=answer)
         tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
 
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
@@ -249,11 +289,11 @@ class OpenAIHelper:
         bot_language = self.config['bot_language']
         try:
             if chat_id not in self.conversations or self.__max_age_reached(chat_id):
-                self.reset_chat_history(chat_id)
+                await self.reset_chat_history(chat_id)
 
             self.last_updated[chat_id] = datetime.datetime.now()
 
-            self.__add_to_history(chat_id, role='user', content=query)
+            await self.__add_to_history(chat_id, role='user', content=query)
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
@@ -265,11 +305,12 @@ class OpenAIHelper:
                 try:
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
                     logging.debug(f'Summary: {summary}')
-                    self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
-                    self.__add_to_history(chat_id, role='assistant', content=summary)
-                    self.__add_to_history(chat_id, role='user', content=query)
+                    await self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
+                    await self.__add_to_history(chat_id, role='assistant', content=summary)
+                    await self.__add_to_history(chat_id, role='user', content=query)
                 except Exception as e:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
+                    # FIXME update in DB
                     self.conversations[chat_id] = [self.conversations[chat_id][0]] + self.conversations[chat_id][
                         -self.config['max_history_size'] - 1 :
                     ]
@@ -341,7 +382,7 @@ class OpenAIHelper:
             plugins_used += (function_name,)
 
         if is_direct_result(function_response):
-            self.__add_function_call_to_history(
+            await self.__add_function_call_to_history(
                 chat_id=chat_id,
                 function_name=function_name,
                 content=json.dumps({'result': 'Done, the content has been sent' 'to the user.'}),
@@ -349,7 +390,9 @@ class OpenAIHelper:
             return function_response, plugins_used
 
         json_func_response = json.dumps(function_response, default=str)
-        self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=json_func_response)
+        await self.__add_function_call_to_history(
+            chat_id=chat_id, function_name=function_name, content=json_func_response
+        )
         response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=self.conversations[chat_id],
@@ -440,13 +483,13 @@ class OpenAIHelper:
         bot_language = self.config['bot_language']
         try:
             if chat_id not in self.conversations or self.__max_age_reached(chat_id):
-                self.reset_chat_history(chat_id)
+                await self.reset_chat_history(chat_id)
 
             self.last_updated[chat_id] = datetime.datetime.now()
 
             if self.config['enable_vision_follow_up_questions']:
                 self.conversations_vision[chat_id] = True
-                self.__add_to_history(chat_id, role='user', content=content)
+                await self.__add_to_history(chat_id, role='user', content=content)
             else:
                 query = None
 
@@ -456,7 +499,7 @@ class OpenAIHelper:
                         break
 
                 if query:
-                    self.__add_to_history(chat_id, role='user', content=query)
+                    await self.__add_to_history(chat_id, role='user', content=query)
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
@@ -469,9 +512,9 @@ class OpenAIHelper:
                     last = self.conversations[chat_id][-1]
                     summary = await self.__summarise(self.conversations[chat_id][:-1])
                     logging.debug(f'Summary: {summary}')
-                    self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
-                    self.__add_to_history(chat_id, role='assistant', content=summary)
-                    self.conversations[chat_id] += [last]
+                    await self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
+                    await self.__add_to_history(chat_id, role='assistant', content=summary)
+                    await self.__add_to_history(chat_id, role=last['role'], content=last['content'])
                 except Exception as e:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
                     self.conversations[chat_id] = [self.conversations[chat_id][0]] + self.conversations[chat_id][
@@ -540,13 +583,13 @@ class OpenAIHelper:
             for index, choice in enumerate(response.choices):
                 content = choice.message.content.strip()
                 if index == 0:
-                    self.__add_to_history(chat_id, role='assistant', content=content)
+                    await self.__add_to_history(chat_id, role='assistant', content=content)
                 answer += f'{index + 1}\u20e3\n'
                 answer += content
                 answer += '\n\n'
         else:
             answer = response.choices[0].message.content.strip()
-            self.__add_to_history(chat_id, role='assistant', content=answer)
+            await self.__add_to_history(chat_id, role='assistant', content=answer)
 
         bot_language = self.config['bot_language']
         # Plugins are not enabled either
@@ -598,7 +641,7 @@ class OpenAIHelper:
                 answer += delta.content
                 yield answer, 'not_finished'
         answer = answer.strip()
-        self.__add_to_history(chat_id, role='assistant', content=answer)
+        await self.__add_to_history(chat_id, role='assistant', content=answer)
         tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
 
         # show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
@@ -612,7 +655,7 @@ class OpenAIHelper:
 
         yield answer, tokens_used
 
-    def reset_chat_history(self, chat_id, content=''):
+    async def reset_chat_history(self, chat_id, content=''):
         """
         Resets the conversation history.
         """
@@ -620,6 +663,9 @@ class OpenAIHelper:
             content = self.config['assistant_prompt']
         self.conversations[chat_id] = [{'role': 'system', 'content': content}]
         self.conversations_vision[chat_id] = False
+
+        await self.init_conv_in_db(chat_id)
+        await self.add_conv_in_db(chat_id, 'system', content)
 
     def __max_age_reached(self, chat_id) -> bool:
         """
@@ -634,13 +680,14 @@ class OpenAIHelper:
         max_age_minutes = self.config['max_conversation_age_minutes']
         return last_updated < now - datetime.timedelta(minutes=max_age_minutes)
 
-    def __add_function_call_to_history(self, chat_id, function_name, content):
+    async def __add_function_call_to_history(self, chat_id, function_name, content):
         """
         Adds a function call to the conversation history
         """
         self.conversations[chat_id].append({'role': 'function', 'name': function_name, 'content': content})
+        await self.add_conv_in_db(chat_id, 'function', content, function_name)
 
-    def __add_to_history(self, chat_id, role, content):
+    async def __add_to_history(self, chat_id, role, content):
         """
         Adds a message to the conversation history.
         :param chat_id: The chat ID
@@ -648,6 +695,7 @@ class OpenAIHelper:
         :param content: The message content
         """
         self.conversations[chat_id].append({'role': role, 'content': content})
+        await self.add_conv_in_db(chat_id, role, content)
 
     async def __summarise(self, conversation) -> str:
         """

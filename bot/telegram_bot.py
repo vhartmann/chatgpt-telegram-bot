@@ -7,6 +7,7 @@ import os
 from typing import Optional
 from uuid import uuid4
 
+import asyncpg
 from openai_helper import OpenAIHelper, localized_text
 from PIL import Image
 from pydub import AudioSegment
@@ -203,7 +204,7 @@ class ChatGPTTelegramBot:
         current_cost = self.usage[user_id].get_current_cost()
 
         chat_id = update.effective_chat.id
-        chat_messages, chat_token_length = self.openai.get_conversation_stats(chat_id)
+        chat_messages, chat_token_length = await self.openai.get_conversation_stats(chat_id)
         remaining_budget = get_remaining_budget(self.config, self.usage, update)
         bot_language = self.config['bot_language']
 
@@ -333,7 +334,7 @@ class ChatGPTTelegramBot:
         logging.info(f'Resetting the conversation for {ai_context_id}.')
 
         reset_content = message_text(update.message)
-        self.openai.reset_chat_history(chat_id=ai_context_id, content=reset_content)
+        await self.openai.reset_chat_history(chat_id=ai_context_id, content=reset_content)
         sent_msg = await update.effective_message.reply_text(
             message_thread_id=get_forum_thread_id(update),
             text=localized_text('reset_done', self.config['bot_language']),
@@ -1263,6 +1264,16 @@ class ChatGPTTelegramBot:
         await application.bot.set_my_commands(self.group_commands, scope=BotCommandScopeAllGroupChats())
         await application.bot.set_my_commands(self.commands)
 
+        if self.config['database_url']:
+            self.openai.db_pool = await asyncpg.create_pool(dsn=self.config['database_url'])
+            async with self.openai.db_pool.acquire() as connection:
+                await connection.execute('drop schema public cascade')
+                await connection.execute('create schema public')
+
+    async def post_shutdown(self, _: Application) -> None:
+        if self.openai.db_pool:
+            await self.openai.db_pool.close()
+
     def run(self):
         """
         Runs the bot indefinitely until the user presses Ctrl+C
@@ -1273,6 +1284,7 @@ class ChatGPTTelegramBot:
             .proxy_url(self.config['proxy'])
             .get_updates_proxy_url(self.config['proxy'])
             .post_init(self.post_init)
+            .post_shutdown(self.post_shutdown)
             .concurrent_updates(True)
             .build()
         )
