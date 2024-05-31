@@ -117,7 +117,7 @@ class ChatGPTTelegramBot:
     def get_thread_id(self, update: Update) -> str:
         c = update.effective_chat.id
         m = update.effective_message
-        if not m:
+        if not m or not m.reply_to_message:
             return f'{c}'
 
         self.replies_tracker[m.id] = (
