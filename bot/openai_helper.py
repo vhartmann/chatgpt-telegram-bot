@@ -5,11 +5,13 @@ import io
 import json
 import logging
 import os
-from typing import Optional
+from typing import Optional, TypedDict
 
 import httpx
 import openai
 import tiktoken
+from openai._utils import async_maybe_transform
+from openai.types.chat import ChatCompletionMessageParam
 from PIL import Image
 from plugin_manager import PluginManager
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
@@ -143,6 +145,9 @@ class OpenAIHelper:
         self.conversations: dict[int:list] = {}  # {chat_id: history}
         self.conversations_vision: dict[int:bool] = {}  # {chat_id: is_vision}
         self.last_updated: dict[int:datetime] = {}  # {chat_id: last_update_timestamp}
+
+    class MessageDb(TypedDict, total=False):
+        message: ChatCompletionMessageParam
 
     async def init_conv_in_db(self, chat_id: str) -> None:
         if chat_id.split('_')[0] not in self.config['allowed_chat_ids_to_track']:
@@ -696,10 +701,13 @@ class OpenAIHelper:
         """
         self.conversations[chat_id].append({'role': role, 'content': content})
 
-        if not isinstance(content, str):
-            content = json.dumps(content, ensure_ascii=False).encode('UTF-8')
+        data = await async_maybe_transform({'message': {'role': role, 'content': content}}, self.MessageDb)
+        msg = data['message']
 
-        await self.add_conv_in_db(chat_id, role, content)
+        if not isinstance(msg['content'], str):
+            msg['content'] = json.dumps(msg['content'])
+
+        await self.add_conv_in_db(chat_id, msg['role'], msg['content'])
 
     async def __summarise(self, conversation) -> str:
         """
