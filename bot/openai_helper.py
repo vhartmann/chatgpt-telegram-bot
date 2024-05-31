@@ -695,7 +695,7 @@ class OpenAIHelper:
         :param content: The message content
         """
         self.conversations[chat_id].append({'role': role, 'content': content})
-        await self.add_conv_in_db(chat_id, role, content)
+        await self.add_conv_in_db(chat_id, role, json.dumps(content))
 
     async def __summarise(self, conversation) -> str:
         """
