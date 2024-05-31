@@ -4,6 +4,7 @@ import asyncio
 import io
 import logging
 import os
+from typing import Optional
 from uuid import uuid4
 
 from openai_helper import OpenAIHelper, localized_text
@@ -16,6 +17,7 @@ from telegram import (
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
     InputTextMessageContent,
+    Message,
     Update,
     constants,
 )
@@ -128,6 +130,22 @@ class ChatGPTTelegramBot:
 
         thread_id = self.replies_tracker[m.id]
         return f'{c}_{thread_id}'
+
+    def get_real_thread_id(self, update: Update) -> Optional[int]:
+        m = update.effective_message
+        if not m or not m.reply_to_message:
+            return None
+
+        self.replies_tracker[m.id] = (
+            self.replies_tracker[m.reply_to_message.id]
+            if m.reply_to_message.id in self.replies_tracker
+            else m.reply_to_message.id
+        )
+
+        return self.replies_tracker[m.id]
+
+    def save_reply(self, msg: Message, update: Update):
+        self.replies_tracker[msg.message_id] = self.get_real_thread_id(update)
 
     async def help(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -316,7 +334,7 @@ class ChatGPTTelegramBot:
             message_thread_id=get_forum_thread_id(update),
             text=localized_text('reset_done', self.config['bot_language']),
         )
-        self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+        self.save_reply(sent_msg, update)
 
     async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -412,7 +430,7 @@ class ChatGPTTelegramBot:
                     reply_to_message_id=get_reply_to_message_id(self.config, update),
                     voice=speech_file,
                 )
-                self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                self.save_reply(sent_msg, update)
                 speech_file.close()
                 # add image request to users usage tracker
                 user_id = update.message.from_user.id
@@ -465,7 +483,7 @@ class ChatGPTTelegramBot:
                     ),
                     parse_mode=constants.ParseMode.MARKDOWN,
                 )
-                self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                self.save_reply(sent_msg, update)
                 return
 
             try:
@@ -520,7 +538,7 @@ class ChatGPTTelegramBot:
                             text=transcript_chunk,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
-                        self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                        self.save_reply(sent_msg, update)
                 else:
                     # Get the response of the transcript
                     response, total_tokens = await self.openai.get_chat_response(
@@ -545,7 +563,7 @@ class ChatGPTTelegramBot:
                             text=transcript_chunk,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
-                        self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                        self.save_reply(sent_msg, update)
 
             except Exception as e:
                 logging.exception(e)
@@ -667,7 +685,7 @@ class ChatGPTTelegramBot:
                                     message_thread_id=get_forum_thread_id(update),
                                     text=content if len(content) > 0 else '...',
                                 )
-                                self.replies_tracker[sent_message.message_id] = self.get_thread_id(update)
+                                self.save_reply(sent_message, update)
                             except:
                                 pass
                             continue
@@ -687,7 +705,7 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=content,
                             )
-                            self.replies_tracker[sent_message.message_id] = self.get_thread_id(update)
+                            self.save_reply(sent_message, update)
                         except:
                             continue
 
@@ -737,7 +755,7 @@ class ChatGPTTelegramBot:
                             text=interpretation,
                             parse_mode=constants.ParseMode.MARKDOWN,
                         )
-                        self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                        self.save_reply(sent_msg, update)
                     except BadRequest:
                         try:
                             sent_msg = await update.effective_message.reply_text(
@@ -745,7 +763,7 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=interpretation,
                             )
-                            self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                            self.save_reply(sent_msg, update)
                         except Exception as e:
                             logging.exception(e)
                             await update.effective_message.reply_text(
@@ -853,7 +871,7 @@ class ChatGPTTelegramBot:
                                     message_thread_id=get_forum_thread_id(update),
                                     text=content if len(content) > 0 else '...',
                                 )
-                                self.replies_tracker[sent_message.message_id] = self.get_thread_id(update)
+                                self.save_reply(sent_message, update)
                             except:
                                 pass
                             continue
@@ -873,7 +891,7 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=content,
                             )
-                            self.replies_tracker[sent_message.message_id] = self.get_thread_id(update)
+                            self.save_reply(sent_message, update)
                         except:
                             continue
 
@@ -932,7 +950,7 @@ class ChatGPTTelegramBot:
                                 text=chunk,
                                 parse_mode=constants.ParseMode.MARKDOWN,
                             )
-                            self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                            self.save_reply(sent_msg, update)
                         except Exception:
                             try:
                                 sent_msg = await update.effective_message.reply_text(
@@ -942,7 +960,7 @@ class ChatGPTTelegramBot:
                                     else None,
                                     text=chunk,
                                 )
-                                self.replies_tracker[sent_msg.message_id] = self.get_thread_id(update)
+                                self.save_reply(sent_msg, update)
                             except Exception as exception:
                                 raise exception
 
