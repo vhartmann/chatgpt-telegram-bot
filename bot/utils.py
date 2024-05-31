@@ -16,7 +16,7 @@ def message_text(message: Message) -> str:
     """
     Returns the text of a message, excluding any bot commands.
     """
-    message_txt = message.text
+    message_txt = message.text_markdown_v2
     if message_txt is None:
         return ''
 
@@ -49,7 +49,7 @@ async def is_user_in_group(update: Update, context: CallbackContext, user_id: in
         raise e
 
 
-def get_thread_id(update: Update) -> int | None:
+def get_forum_thread_id(update: Update) -> int | None:
     """
     Gets the message thread id for the update, if any
     """
@@ -101,7 +101,7 @@ async def wrap_with_indicator(
     while not task.done():
         if not is_inline:
             context.application.create_task(
-                update.effective_chat.send_action(chat_action, message_thread_id=get_thread_id(update))
+                update.effective_chat.send_action(chat_action, message_thread_id=get_forum_thread_id(update))
             )
         try:
             await asyncio.wait_for(asyncio.shield(task), 4.5)
@@ -356,7 +356,7 @@ async def handle_direct_result(config, update: Update, response: any):
     value = result['value']
 
     common_args = {
-        'message_thread_id': get_thread_id(update),
+        'message_thread_id': get_forum_thread_id(update),
         'reply_to_message_id': get_reply_to_message_id(config, update),
     }
 
