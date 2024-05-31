@@ -184,7 +184,7 @@ class OpenAIHelper:
         if self.config['show_usage']:
             answer += (
                 "\n\n---\n"
-                f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+                f"ID: {chat_id[-2:]} 💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
                 f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
                 f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
             )
@@ -192,8 +192,6 @@ class OpenAIHelper:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
-
-        answer += f'\n\nID: {chat_id}'
 
         return answer, response.usage.total_tokens
 
@@ -227,13 +225,11 @@ class OpenAIHelper:
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += f"\n\n---\n💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
+            answer += f"\n\n---\nID: {chat_id[-2:]} 💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
-
-        answer += f'\n\nID: {chat_id}'
 
         yield answer, tokens_used
 
@@ -559,7 +555,7 @@ class OpenAIHelper:
         if self.config['show_usage']:
             answer += (
                 "\n\n---\n"
-                f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+                f"ID: {chat_id[-2:]} 💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
                 f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
                 f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
             )
@@ -567,8 +563,6 @@ class OpenAIHelper:
             #     answer += f"\n🔌 {', '.join(plugin_names)}"
         # elif show_plugins_used:
         #     answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
-
-        answer += f'\n\nID: {chat_id}'
 
         return answer, response.usage.total_tokens
 
@@ -610,13 +604,11 @@ class OpenAIHelper:
         # show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         # plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += f"\n\n---\n💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
+            answer += f"\n\n---\nID: {chat_id[-2:]} 💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
         #     if show_plugins_used:
         #         answer += f"\n🔌 {', '.join(plugin_names)}"
         # elif show_plugins_used:
         #     answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
-
-        answer += f'\n\nID: {chat_id}'
 
         yield answer, tokens_used
 
