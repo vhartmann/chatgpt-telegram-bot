@@ -601,10 +601,17 @@ class ChatGPTTelegramBot:
                 logging.info('Vision coming from group chat, ignoring...')
                 return
             else:
+                no_reply = (
+                    update.effective_message.reply_to_message is None
+                    or update.effective_message.reply_to_message.from_user.id != context.bot.id
+                )
+
                 trigger_keyword = self.config['group_trigger_keyword']
-                if (prompt is None and trigger_keyword != '') or (
+                no_keyword = (prompt is None and trigger_keyword != '') or (
                     prompt is not None and not prompt.lower().startswith(trigger_keyword.lower())
-                ):
+                )
+
+                if no_reply or no_keyword:
                     logging.info('Vision coming from group chat with wrong keyword, ignoring...')
                     return
 
