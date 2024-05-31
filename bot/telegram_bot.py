@@ -119,8 +119,10 @@ class ChatGPTTelegramBot:
     def get_thread_id(self, update: Update) -> str:
         c = update.effective_chat.id
         m = update.effective_message
-        if not m or not m.reply_to_message:
-            return f'{c}'
+        if not m:
+            raise ValueError('No message found in update')
+        if not m.reply_to_message:
+            return str(c)
 
         self.replies_tracker[m.id] = (
             self.replies_tracker[m.reply_to_message.id]
@@ -133,8 +135,10 @@ class ChatGPTTelegramBot:
 
     def get_real_thread_id(self, update: Update) -> Optional[int]:
         m = update.effective_message
-        if not m or not m.reply_to_message:
-            return None
+        if not m:
+            raise ValueError('No message found in update')
+        if not m.reply_to_message:
+            return m.id
 
         self.replies_tracker[m.id] = (
             self.replies_tracker[m.reply_to_message.id]
