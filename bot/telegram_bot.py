@@ -122,7 +122,7 @@ class ChatGPTTelegramBot:
         if not m:
             raise ValueError('No message found in update')
         if not m.reply_to_message:
-            return str(c)
+            return f'{c}_{m.id}'
 
         self.replies_tracker[m.id] = (
             self.replies_tracker[m.reply_to_message.id]
