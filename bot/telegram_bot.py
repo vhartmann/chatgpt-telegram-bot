@@ -112,6 +112,22 @@ class ChatGPTTelegramBot:
         self.usage = {}
         self.last_message = {}
         self.inline_queries_cache = {}
+        self.replies_tracker = {}
+
+    def get_thread_id(self, update: Update) -> str:
+        c = update.effective_chat.id
+        m = update.effective_message
+        if not m:
+            return f'{c}'
+
+        self.replies_tracker[m.id] = (
+            self.replies_tracker[m.reply_to_message.id]
+            if m.reply_to_message.id in self.replies_tracker
+            else m.reply_to_message.id
+        )
+
+        thread_id = self.replies_tracker[m.id]
+        return f'{c}_{thread_id}'
 
     async def help(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -291,14 +307,11 @@ class ChatGPTTelegramBot:
             await self.send_disallowed_message(update, context)
             return
 
-        logging.info(
-            f'Resetting the conversation for user {update.message.from_user.name} '
-            f'(id: {update.message.from_user.id})...'
-        )
+        ai_context_id = self.get_thread_id(update)
+        logging.info(f'Resetting the conversation for {ai_context_id}.')
 
-        chat_id = update.effective_chat.id
         reset_content = message_text(update.message)
-        self.openai.reset_chat_history(chat_id=chat_id, content=reset_content)
+        self.openai.reset_chat_history(chat_id=ai_context_id, content=reset_content)
         await update.effective_message.reply_text(
             message_thread_id=get_forum_thread_id(update),
             text=localized_text('reset_done', self.config['bot_language']),
@@ -430,7 +443,7 @@ class ChatGPTTelegramBot:
             logging.info('Transcription coming from group chat, ignoring...')
             return
 
-        chat_id = update.effective_chat.id
+        ai_context_id = self.get_thread_id(update)
         filename = update.message.effective_attachment.file_unique_id
 
         async def _execute():
@@ -506,7 +519,9 @@ class ChatGPTTelegramBot:
                         )
                 else:
                     # Get the response of the transcript
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript)
+                    response, total_tokens = await self.openai.get_chat_response(
+                        chat_id=ai_context_id, query=transcript
+                    )
 
                     self.usage[user_id].add_chat_tokens(total_tokens, self.config['token_price'])
                     if str(user_id) not in allowed_user_ids and 'guests' in self.usage:
@@ -550,6 +565,7 @@ class ChatGPTTelegramBot:
         if not self.config['enable_vision'] or not await self.check_allowed_and_within_budget(update, context):
             return
 
+        ai_context_id = self.get_thread_id(update)
         chat_id = update.effective_chat.id
         prompt = update.message.caption
 
@@ -612,7 +628,7 @@ class ChatGPTTelegramBot:
 
             if self.config['stream']:
                 stream_response = self.openai.interpret_image_stream(
-                    chat_id=chat_id, fileobj=temp_file_png, prompt=prompt
+                    chat_id=ai_context_id, fileobj=temp_file_png, prompt=prompt
                 )
                 i = 0
                 prev = ''
@@ -704,7 +720,7 @@ class ChatGPTTelegramBot:
             else:
                 try:
                     interpretation, total_tokens = await self.openai.interpret_image(
-                        chat_id, temp_file_png, prompt=prompt
+                        ai_context_id, temp_file_png, prompt=prompt
                     )
 
                     try:
@@ -759,6 +775,7 @@ class ChatGPTTelegramBot:
         logging.info(
             f'New message received from user {update.message.from_user.name} (id: {update.message.from_user.id})'
         )
+        ai_context_id = self.get_thread_id(update)
         chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
         prompt = message_text(update.message)
@@ -794,7 +811,7 @@ class ChatGPTTelegramBot:
                     message_thread_id=get_forum_thread_id(update),
                 )
 
-                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt)
+                stream_response = self.openai.get_chat_response_stream(chat_id=ai_context_id, query=prompt)
                 i = 0
                 prev = ''
                 sent_message = None
@@ -886,7 +903,7 @@ class ChatGPTTelegramBot:
 
                 async def _reply():
                     nonlocal total_tokens
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt)
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=ai_context_id, query=prompt)
 
                     if is_direct_result(response):
                         return await handle_direct_result(self.config, update, response)
@@ -1017,7 +1034,7 @@ class ChatGPTTelegramBot:
 
                 unavailable_message = localized_text('function_unavailable_in_inline_mode', bot_language)
                 if self.config['stream']:
-                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query)
+                    stream_response = self.openai.get_chat_response_stream(chat_id=str(user_id), query=query)
                     i = 0
                     prev = ''
                     backoff = 0
@@ -1099,7 +1116,7 @@ class ChatGPTTelegramBot:
                         )
 
                         logging.info(f'Generating response for inline query by {name}')
-                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query)
+                        response, total_tokens = await self.openai.get_chat_response(chat_id=str(user_id), query=query)
 
                         if is_direct_result(response):
                             await edit_message_with_retry(

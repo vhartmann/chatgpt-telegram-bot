@@ -150,7 +150,7 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str]:
+    async def get_chat_response(self, chat_id: str, query: str) -> tuple[str, str]:
         """
         Gets a full response from the GPT model.
         :param chat_id: The chat ID
@@ -193,9 +193,11 @@ class OpenAIHelper:
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
 
+        answer += f'\n\nID: {chat_id}'
+
         return answer, response.usage.total_tokens
 
-    async def get_chat_response_stream(self, chat_id: int, query: str):
+    async def get_chat_response_stream(self, chat_id: str, query: str):
         """
         Stream response from the GPT model.
         :param chat_id: The chat ID
@@ -231,6 +233,8 @@ class OpenAIHelper:
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
 
+        answer += f'\n\nID: {chat_id}'
+
         yield answer, tokens_used
 
     @retry(
@@ -239,7 +243,7 @@ class OpenAIHelper:
         wait=wait_fixed(20),
         stop=stop_after_attempt(3),
     )
-    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False):
+    async def __common_get_chat_response(self, chat_id: str, query: str, stream=False):
         """
         Request a response from the GPT model.
         :param chat_id: The chat ID
@@ -448,11 +452,15 @@ class OpenAIHelper:
                 self.conversations_vision[chat_id] = True
                 self.__add_to_history(chat_id, role='user', content=content)
             else:
+                query = None
+
                 for message in content:
                     if message['type'] == 'text':
                         query = message['text']
                         break
-                self.__add_to_history(chat_id, role='user', content=query)
+
+                if query:
+                    self.__add_to_history(chat_id, role='user', content=query)
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
@@ -560,6 +568,8 @@ class OpenAIHelper:
         # elif show_plugins_used:
         #     answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
 
+        answer += f'\n\nID: {chat_id}'
+
         return answer, response.usage.total_tokens
 
     async def interpret_image_stream(self, chat_id, fileobj, prompt=None):
@@ -605,6 +615,8 @@ class OpenAIHelper:
         #         answer += f"\n🔌 {', '.join(plugin_names)}"
         # elif show_plugins_used:
         #     answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
+
+        answer += f'\n\nID: {chat_id}'
 
         yield answer, tokens_used
 
