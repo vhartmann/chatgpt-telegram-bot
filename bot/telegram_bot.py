@@ -611,7 +611,7 @@ class ChatGPTTelegramBot:
                     prompt is not None and not prompt.lower().startswith(trigger_keyword.lower())
                 )
 
-                if no_reply or no_keyword:
+                if no_reply and no_keyword:
                     logging.info('Vision coming from group chat with wrong keyword, ignoring...')
                     return
 
