@@ -223,16 +223,20 @@ class OpenAIHelper:
             answer = response.choices[0].message.content.strip()
             await self.__add_to_history(chat_id, role='assistant', content=answer)
 
-        bot_language = self.config['bot_language']
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += (
-                "\n\n---\n"
-                f"ID: {chat_id[-2:]} 💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
-                f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
-                f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
-            )
+            cost = (0.000005 * response.usage.prompt_tokens) + (0.000015 * response.usage.completion_tokens)
+            price = f'¢{cost / 100:.2f}' if cost >= 0.01 else ''
+            answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
+
+            # bot_language = self.config['bot_language']
+            # answer += (
+            #     "\n\n---\n"
+            #     f"ID: {chat_id[-2:]} 💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+            #     f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
+            #     f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            # )
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
@@ -274,13 +278,17 @@ class OpenAIHelper:
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            bot_language = self.config['bot_language']
-            answer += (
-                "\n\n---\n"
-                f"ID: {chat_id[-2:]} 💰 {str(usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
-                f" ({str(usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
-                f" {str(usage.completion_tokens)} {localized_text('completion', bot_language)})"
-            )
+            cost = (0.000005 * usage.prompt_tokens) + (0.000015 * usage.completion_tokens)
+            price = f'¢{cost / 100:.2f}' if cost >= 0.01 else ''
+            answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
+
+            # bot_language = self.config['bot_language']
+            # answer += (
+            #     "\n\n---\n"
+            #     f"ID: {chat_id[-2:]} 💰 {str(usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+            #     f" ({str(usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
+            #     f" {str(usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            # )
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
