@@ -373,7 +373,7 @@ async def handle_direct_result(config, update: Update, response: any, save_reply
         sent_msg = None
 
     if save_reply and sent_msg:
-        await save_reply(sent_msg, update)
+        save_reply(sent_msg, update)
 
 
 # Function to encode the image
