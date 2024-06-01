@@ -227,7 +227,7 @@ class OpenAIHelper:
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
             cost = (0.000005 * response.usage.prompt_tokens) + (0.000015 * response.usage.completion_tokens)
-            price = f'¢{cost / 100:.2f}' if cost >= 0.01 else ''
+            price = f'¢{cost * 100:.2f}' if cost >= 0.01 else ''
             answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
 
             # bot_language = self.config['bot_language']
@@ -279,7 +279,7 @@ class OpenAIHelper:
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
             cost = (0.000005 * usage.prompt_tokens) + (0.000015 * usage.completion_tokens)
-            price = f'¢{cost / 100:.2f}' if cost >= 0.01 else ''
+            price = f'¢{cost * 100:.2f}' if cost >= 0.01 else ''
             answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
 
             # bot_language = self.config['bot_language']
