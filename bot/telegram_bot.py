@@ -586,7 +586,7 @@ class ChatGPTTelegramBot:
 
         await wrap_with_indicator(update, context, _execute, constants.ChatAction.TYPING)
 
-    async def vision(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def vision(self, update: Update, context: ContextTypes.DEFAULT_TYPE, image=None):
         """
         Interpret image using vision model.
         """
@@ -595,9 +595,13 @@ class ChatGPTTelegramBot:
 
         ai_context_id = self.get_thread_id(update)
         chat_id = update.effective_chat.id
-        prompt = update.message.caption
 
-        if is_group_chat(update):
+        if image is None:
+            prompt = update.message.caption
+        else:
+            prompt = message_text(update.message)
+
+        if image is None and is_group_chat(update):
             if self.config['ignore_group_vision']:
                 logging.info('Vision coming from group chat, ignoring...')
                 return
@@ -616,7 +620,8 @@ class ChatGPTTelegramBot:
                     logging.info('Vision coming from group chat with wrong keyword, ignoring...')
                     return
 
-        image = update.message.effective_attachment[-1]
+        if image is None:
+            image = update.message.effective_attachment[-1]
 
         async def _execute():
             bot_language = self.config['bot_language']
@@ -819,6 +824,9 @@ class ChatGPTTelegramBot:
         user_id = update.message.from_user.id
         prompt = message_text(update.message)
         self.last_message[chat_id] = prompt
+
+        if update.message.reply_to_message and update.message.reply_to_message.effective_attachment:
+            return await self.vision(update, context, update.message.reply_to_message.effective_attachment[-1])
 
         if is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
