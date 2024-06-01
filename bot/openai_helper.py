@@ -143,6 +143,7 @@ class OpenAIHelper:
         self.config = config
         self.plugin_manager = plugin_manager
         self.conversations: dict[int:list] = {}  # {chat_id: history}
+        self.conversations_costs: dict[int:float] = {}  # {chat_id: cost}
         self.conversations_vision: dict[int:bool] = {}  # {chat_id: is_vision}
         self.last_updated: dict[int:datetime] = {}  # {chat_id: last_update_timestamp}
 
@@ -227,7 +228,9 @@ class OpenAIHelper:
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
             cost = (0.000005 * response.usage.prompt_tokens) + (0.000015 * response.usage.completion_tokens)
-            price = f'¢{cost * 100:.2f}' if cost >= 0.01 else ''
+            self.add_cost(chat_id, cost)
+            total_cost = self.get_cost(chat_id)
+            price = f'¢{total_cost * 100:.2f}' if total_cost >= 0.01 else ''
             answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
 
             # bot_language = self.config['bot_language']
@@ -279,7 +282,9 @@ class OpenAIHelper:
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
             cost = (0.000005 * usage.prompt_tokens) + (0.000015 * usage.completion_tokens)
-            price = f'¢{cost * 100:.2f}' if cost >= 0.01 else ''
+            self.add_cost(chat_id, cost)
+            total_cost = self.get_cost(chat_id)
+            price = f'¢{total_cost * 100:.2f}' if total_cost >= 0.01 else ''
             answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
 
             # bot_language = self.config['bot_language']
@@ -690,6 +695,7 @@ class OpenAIHelper:
             content = self.config['assistant_prompt']
         self.conversations[chat_id] = [{'role': 'system', 'content': content}]
         self.conversations_vision[chat_id] = False
+        self.conversations_costs[chat_id] = 0
 
         await self.init_conv_in_db(chat_id)
         await self.add_conv_in_db(chat_id, 'system', content)
@@ -730,6 +736,18 @@ class OpenAIHelper:
             msg['content'] = json.dumps(msg['content'])
 
         await self.add_conv_in_db(chat_id, msg['role'], msg['content'])
+
+    def add_cost(self, chat_id, cost):
+        """
+        Adds the cost to the conversation.
+        """
+        self.conversations_costs[chat_id] = cost + self.conversations_costs.get(chat_id, 0)
+
+    def get_cost(self, chat_id):
+        """
+        Gets the cost of the conversation.
+        """
+        return self.conversations_costs.get(chat_id, 0)
 
     async def __summarise(self, conversation) -> str:
         """
