@@ -35,17 +35,17 @@ class SpotifyPlugin(Plugin):
         return 'Spotify'
 
     def get_spec(self) -> [Dict]:
-        time_range_param = {
-            'type': 'string',
-            'enum': ['short_term', 'medium_term', 'long_term'],
-            'description': 'The time range of the data to be returned. Short term is the last 4 weeks, '
-            'medium term is last 6 months, long term is last several years. Default to '
-            'short_term if not specified.',
-        }
-        limit_param = {
-            'type': 'integer',
-            'description': 'The number of results to return. Max is 50. Default to 5 if not specified.',
-        }
+        # time_range_param = {
+        #     'type': 'string',
+        #     'enum': ['short_term', 'medium_term', 'long_term'],
+        #     'description': 'The time range of the data to be returned. Short term is the last 4 weeks, '
+        #     'medium term is last 6 months, long term is last several years. Default to '
+        #     'short_term if not specified.',
+        # }
+        # limit_param = {
+        #     'type': 'integer',
+        #     'description': 'The number of results to return. Max is 50. Default to 5 if not specified.',
+        # }
         type_param = {
             'type': 'string',
             'enum': ['album', 'artist', 'track'],
@@ -57,28 +57,28 @@ class SpotifyPlugin(Plugin):
                 'description': "Get the user's currently playing song",
                 'parameters': {'type': 'object', 'properties': {}},
             },
-            {
-                'name': 'spotify_get_users_top_artists',
-                'description': "Get the user's top listened artists",
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'time_range': time_range_param,
-                        'limit': limit_param,
-                    },
-                },
-            },
-            {
-                'name': 'spotify_get_users_top_tracks',
-                'description': "Get the user's top listened tracks",
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'time_range': time_range_param,
-                        'limit': limit_param,
-                    },
-                },
-            },
+            # {
+            #     'name': 'spotify_get_users_top_artists',
+            #     'description': "Get the user's top listened artists",
+            #     'parameters': {
+            #         'type': 'object',
+            #         'properties': {
+            #             'time_range': time_range_param,
+            #             'limit': limit_param,
+            #         },
+            #     },
+            # },
+            # {
+            #     'name': 'spotify_get_users_top_tracks',
+            #     'description': "Get the user's top listened tracks",
+            #     'parameters': {
+            #         'type': 'object',
+            #         'properties': {
+            #             'time_range': time_range_param,
+            #             'limit': limit_param,
+            #         },
+            #     },
+            # },
             {
                 'name': 'spotify_search_by_query',
                 'description': 'Search spotify content by query',
@@ -94,26 +94,26 @@ class SpotifyPlugin(Plugin):
                     'required': ['query', 'type'],
                 },
             },
-            {
-                'name': 'spotify_lookup_by_id',
-                'description': 'Lookup spotify content by id',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'id': {
-                            'type': 'string',
-                            'description': 'The exact id to lookup. Can be a track id, an artist id or an album id',
-                        },
-                        'type': type_param,
-                    },
-                    'required': ['id', 'type'],
-                },
-            },
+            # {
+            #     'name': 'spotify_lookup_by_id',
+            #     'description': 'Lookup spotify content by id',
+            #     'parameters': {
+            #         'type': 'object',
+            #         'properties': {
+            #             'id': {
+            #                 'type': 'string',
+            #                 'description': 'The exact id to lookup. Can be a track id, an artist id or an album id',
+            #             },
+            #             'type': type_param,
+            #         },
+            #         'required': ['id', 'type'],
+            #     },
+            # },
         ]
 
     async def execute(self, function_name, helper, **kwargs) -> Dict:
         time_range = kwargs.get('time_range', 'short_term')
-        limit = kwargs.get('limit', 5)
+        limit = kwargs.get('limit', 3)
 
         if function_name == 'spotify_get_currently_playing_song':
             return self.fetch_currently_playing()

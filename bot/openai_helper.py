@@ -346,9 +346,9 @@ class OpenAIHelper:
                 common_args['stream_options'] = {'include_usage': True}
 
             if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
-                functions = self.plugin_manager.get_functions_specs()
+                functions = self.plugin_manager.get_functions_specs(query)
                 if len(functions) > 0:
-                    common_args['functions'] = self.plugin_manager.get_functions_specs()
+                    common_args['functions'] = functions
                     common_args['function_call'] = 'auto'
             return await self.client.chat.completions.create(**common_args)
 
@@ -362,6 +362,7 @@ class OpenAIHelper:
             raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
 
     async def __handle_function_call(self, chat_id, response, stream=False, times=0, plugins_used=()):
+        # FIXME misses correct count of tokens on chained function calls
         function_name = ''
         arguments = ''
         if stream:
@@ -416,6 +417,7 @@ class OpenAIHelper:
             functions=self.plugin_manager.get_functions_specs(),
             function_call='auto' if times < self.config['functions_max_consecutive_calls'] else 'none',
             stream=stream,
+            stream_options={'include_usage': True},
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
 
