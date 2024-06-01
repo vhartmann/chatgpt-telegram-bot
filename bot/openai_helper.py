@@ -256,27 +256,37 @@ class OpenAIHelper:
                 return
 
         answer = ''
+        last_chunk = None
         async for chunk in response:
+            last_chunk = chunk
             if len(chunk.choices) == 0:
                 continue
             delta = chunk.choices[0].delta
             if delta.content:
                 answer += delta.content
                 yield answer, 'not_finished'
+
         answer = answer.strip()
         await self.__add_to_history(chat_id, role='assistant', content=answer)
-        tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
+
+        usage = last_chunk.usage
 
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += f"\n\n---\nID: {chat_id[-2:]} 💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
+            bot_language = self.config['bot_language']
+            answer += (
+                "\n\n---\n"
+                f"ID: {chat_id[-2:]} 💰 {str(usage.total_tokens)} {localized_text('stats_tokens', bot_language)}"
+                f" ({str(usage.prompt_tokens)} {localized_text('prompt', bot_language)},"
+                f" {str(usage.completion_tokens)} {localized_text('completion', bot_language)})"
+            )
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
 
-        yield answer, tokens_used
+        yield answer, usage.total_tokens
 
     @retry(
         reraise=True,
@@ -332,6 +342,8 @@ class OpenAIHelper:
                 'frequency_penalty': self.config['frequency_penalty'],
                 'stream': stream,
             }
+            if stream:
+                common_args['stream_options'] = {'include_usage': True}
 
             if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
                 functions = self.plugin_manager.get_functions_specs()
