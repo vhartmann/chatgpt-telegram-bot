@@ -673,7 +673,7 @@ class ChatGPTTelegramBot:
 
                 async for content, tokens in stream_response:
                     if is_direct_result(content):
-                        return await handle_direct_result(self.config, update, content)
+                        return await handle_direct_result(self.config, update, content, self.save_reply)
 
                     if len(content.strip()) == 0:
                         continue
@@ -859,7 +859,7 @@ class ChatGPTTelegramBot:
 
                 async for content, tokens in stream_response:
                     if is_direct_result(content):
-                        return await handle_direct_result(self.config, update, content)
+                        return await handle_direct_result(self.config, update, content, self.save_reply)
 
                     if len(content.strip()) == 0:
                         continue
@@ -947,7 +947,7 @@ class ChatGPTTelegramBot:
                     response, total_tokens = await self.openai.get_chat_response(chat_id=ai_context_id, query=prompt)
 
                     if is_direct_result(response):
-                        return await handle_direct_result(self.config, update, response)
+                        return await handle_direct_result(self.config, update, response, self.save_reply)
 
                     # Split into chunks of 4096 characters (Telegram's message limit)
                     chunks = split_into_chunks(response)

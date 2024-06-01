@@ -40,7 +40,7 @@ class YouTubeAudioExtractorPlugin(Plugin):
             audio = video.streams.filter(only_audio=True, file_extension='mp4').first()
             file_obj = io.BytesIO()
             audio.stream_to_buffer(file_obj)
-            return {'direct_result': {'kind': 'file', 'format': 'path', 'value': file_obj}}
+            return {'direct_result': {'kind': 'file', 'value': file_obj}}
         except Exception as e:
             logging.warning(f'Failed to extract audio from YouTube video: {str(e)}')
             return {'result': 'Failed to extract audio'}

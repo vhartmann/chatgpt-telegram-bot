@@ -5,6 +5,7 @@ import base64
 import itertools
 import json
 import logging
+from typing import Callable, Optional
 
 import telegram
 from telegram import ChatMember, Message, MessageEntity, Update, constants
@@ -344,7 +345,7 @@ def is_direct_result(response: any) -> bool:
         return response.get('direct_result', False)
 
 
-async def handle_direct_result(config, update: Update, response: any):
+async def handle_direct_result(config, update: Update, response: any, save_reply: Optional[Callable] = None):
     """
     Handles a direct result from a plugin
     """
@@ -361,13 +362,18 @@ async def handle_direct_result(config, update: Update, response: any):
     }
 
     if kind == 'photo':
-        await update.effective_message.reply_photo(**common_args, photo=value)
+        sent_msg = await update.effective_message.reply_photo(**common_args, photo=value)
     elif kind in {'gif', 'file'}:
-        await update.effective_message.reply_document(**common_args, document=value)
+        sent_msg = await update.effective_message.reply_document(**common_args, document=value)
     elif kind == 'voice':
-        await update.effective_message.reply_voice(**common_args, voice=value)
+        sent_msg = await update.effective_message.reply_voice(**common_args, voice=value)
     elif kind == 'dice':
-        await update.effective_message.reply_dice(**common_args, emoji=value)
+        sent_msg = await update.effective_message.reply_dice(**common_args, emoji=value)
+    else:
+        sent_msg = None
+
+    if save_reply and sent_msg:
+        await save_reply(sent_msg, update)
 
 
 # Function to encode the image
