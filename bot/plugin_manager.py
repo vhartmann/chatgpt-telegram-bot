@@ -1,11 +1,16 @@
 import json
+import os
 from typing import Dict, Optional
 
 from plugins.auto_tts import AutoTextToSpeech
 from plugins.ddg_image_search import DDGImageSearchPlugin
 from plugins.ddg_web_search import DDGWebSearchPlugin
+from plugins.dice import DicePlugin
+from plugins.gtts_text_to_speech import GTTSTextToSpeech
 from plugins.spotify import SpotifyPlugin
+from plugins.weather import WeatherPlugin
 from plugins.website_content import WebsiteContentPlugin
+from plugins.youtube_audio_extractor import YouTubeAudioExtractorPlugin
 from plugins.youtube_transcript import YoutubeTranscriptPlugin
 
 
@@ -18,15 +23,15 @@ class PluginManager:
         # enabled_plugins = config.get('plugins', [])
         plugin_mapping = {
             # 'wolfram': WolframAlphaPlugin,
-            # 'weather': WeatherPlugin,
+            'weather': WeatherPlugin,
             'ddg_web_search': DDGWebSearchPlugin,
             # 'ddg_translate': DDGTranslatePlugin,
             'ddg_image_search': DDGImageSearchPlugin,
             'spotify': SpotifyPlugin,
             # 'worldtimeapi': WorldTimeApiPlugin,
-            # 'youtube_audio_extractor': YouTubeAudioExtractorPlugin,
-            # 'dice': DicePlugin,
-            # 'gtts_text_to_speech': GTTSTextToSpeech,
+            'youtube_audio_extractor': YouTubeAudioExtractorPlugin,
+            'dice': DicePlugin,
+            'gtts_text_to_speech': GTTSTextToSpeech,
             'auto_tts': AutoTextToSpeech,
             # 'whois': WhoisPlugin,
             # 'webshot': WebshotPlugin,
@@ -35,6 +40,7 @@ class PluginManager:
             'youtube_transcript': YoutubeTranscriptPlugin,
         }
         self.plugins = [plugin() for plugin in plugin_mapping.values()]
+        # self.plugins = []
         # self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
 
     def get_functions_specs(self, query: Optional[str] = None):
@@ -43,7 +49,10 @@ class PluginManager:
         """
         use_all_plugins = True
         if query:
-            use_all_plugins = query.startswith('z')
+            use_all_plugins = query.lower().startswith('z')
+
+        if 'USE_ALL_PLUGINS' in os.environ:
+            use_all_plugins = True
 
         if not use_all_plugins:
             return []

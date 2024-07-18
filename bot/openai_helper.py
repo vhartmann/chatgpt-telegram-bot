@@ -28,7 +28,7 @@ GPT_3_16K_MODELS = (
 )
 GPT_4_MODELS = ('gpt-4', 'gpt-4-0314', 'gpt-4-0613', 'gpt-4-turbo-preview')
 GPT_4_32K_MODELS = ('gpt-4-32k', 'gpt-4-32k-0314', 'gpt-4-32k-0613')
-GPT_4_VISION_MODELS = ('gpt-4-vision-preview', 'gpt-4o')
+GPT_4_VISION_MODELS = ('gpt-4-vision-preview', 'gpt-4o', 'gpt-4o-mini')
 GPT_4_128K_MODELS = (
     'gpt-4-1106-preview',
     'gpt-4-0125-preview',
@@ -36,7 +36,7 @@ GPT_4_128K_MODELS = (
     'gpt-4-turbo',
     'gpt-4-turbo-2024-04-09',
 )
-GPT_4O_MODELS = ('gpt-4o',)
+GPT_4O_MODELS = ('gpt-4o', 'gpt-4o-mini')
 GPT_ALL_MODELS = (
     GPT_3_MODELS
     + GPT_3_16K_MODELS
@@ -227,7 +227,12 @@ class OpenAIHelper:
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            cost = (0.000005 * response.usage.prompt_tokens) + (0.000015 * response.usage.completion_tokens)
+            # gpt 4o-mini
+            cost = (0.00000015 * response.usage.prompt_tokens) + (0.0000006 * response.usage.completion_tokens)
+
+            # gpt 4o
+            # cost = (0.000005 * response.usage.prompt_tokens) + (0.000015 * response.usage.completion_tokens)
+
             self.add_cost(chat_id, cost)
             total_cost = self.get_cost(chat_id)
             price = f'¢{total_cost * 100:.2f}' if total_cost >= 1e-4 else ''
@@ -281,7 +286,12 @@ class OpenAIHelper:
         show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            cost = (0.000005 * usage.prompt_tokens) + (0.000015 * usage.completion_tokens)
+            # gpt 4o-mini
+            cost = (0.00000015 * usage.prompt_tokens) + (0.0000006 * usage.completion_tokens)
+
+            # gpt 4o
+            # cost = (0.000005 * usage.prompt_tokens) + (0.000015 * usage.completion_tokens)
+
             self.add_cost(chat_id, cost)
             total_cost = self.get_cost(chat_id)
             price = f'¢{total_cost * 100:.2f}' if total_cost >= 1e-4 else ''
@@ -566,6 +576,9 @@ class OpenAIHelper:
                 'stream': stream,
             }
 
+            if stream:
+                common_args['stream_options'] = {'include_usage': True}
+
             # vision model does not yet support functions
 
             # if self.config['enable_functions']:
@@ -665,21 +678,30 @@ class OpenAIHelper:
         #         return
 
         answer = ''
+        last_chunk = None
         async for chunk in response:
+            last_chunk = chunk
             if len(chunk.choices) == 0:
                 continue
             delta = chunk.choices[0].delta
             if delta.content:
                 answer += delta.content
                 yield answer, 'not_finished'
+
+        usage = last_chunk.usage
         answer = answer.strip()
         await self.__add_to_history(chat_id, role='assistant', content=answer)
-        tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
+        # tokens_used = str(self.__count_tokens(self.conversations[chat_id]))
+        tokens_used = usage.total_tokens
+
+        # gpt 4o-mini
+        cost = (0.00000015 * usage.prompt_tokens) + (0.0000006 * usage.completion_tokens)
+        price = f'¢{cost * 100:.2f}' if cost >= 1e-4 else ''
 
         # show_plugins_used = len(plugins_used) > 0 and self.config['show_plugins_used']
         # plugin_names = tuple(self.plugin_manager.get_plugin_source_name(plugin) for plugin in plugins_used)
         if self.config['show_usage']:
-            answer += f"\n\n---\nID: {chat_id[-2:]} 💰 {tokens_used} {localized_text('stats_tokens', self.config['bot_language'])}"
+            answer += f'\n\n---\nID: {chat_id[-2:]} {price}'
         #     if show_plugins_used:
         #         answer += f"\n🔌 {', '.join(plugin_names)}"
         # elif show_plugins_used:
