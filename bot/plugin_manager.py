@@ -10,6 +10,8 @@ from plugins.gtts_text_to_speech import GTTSTextToSpeech
 from plugins.spotify import SpotifyPlugin
 from plugins.weather import WeatherPlugin
 from plugins.website_content import WebsiteContentPlugin
+from plugins.wolfram_alpha import WolframAlphaPlugin
+from plugins.worldtimeapi import WorldTimeApiPlugin
 from plugins.youtube_audio_extractor import YouTubeAudioExtractorPlugin
 from plugins.youtube_transcript import YoutubeTranscriptPlugin
 
@@ -22,13 +24,13 @@ class PluginManager:
     def __init__(self, config):
         # enabled_plugins = config.get('plugins', [])
         plugin_mapping = {
-            # 'wolfram': WolframAlphaPlugin,
+            'wolfram': WolframAlphaPlugin,
             'weather': WeatherPlugin,
             'ddg_web_search': DDGWebSearchPlugin,
             # 'ddg_translate': DDGTranslatePlugin,
             'ddg_image_search': DDGImageSearchPlugin,
             'spotify': SpotifyPlugin,
-            # 'worldtimeapi': WorldTimeApiPlugin,
+            'worldtimeapi': WorldTimeApiPlugin,
             'youtube_audio_extractor': YouTubeAudioExtractorPlugin,
             'dice': DicePlugin,
             'gtts_text_to_speech': GTTSTextToSpeech,
