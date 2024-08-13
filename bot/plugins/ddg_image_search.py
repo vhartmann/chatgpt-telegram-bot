@@ -36,83 +36,12 @@ class DDGImageSearchPlugin(Plugin):
                             'enum': ['photo', 'gif'],
                             'description': 'The type of image to search for. Default to `photo` if not specified',
                         },
-                        'region': {
-                            'type': 'string',
-                            'enum': [
-                                'xa-ar',
-                                'xa-en',
-                                'ar-es',
-                                'au-en',
-                                'at-de',
-                                'be-fr',
-                                'be-nl',
-                                'br-pt',
-                                'bg-bg',
-                                'ca-en',
-                                'ca-fr',
-                                'ct-ca',
-                                'cl-es',
-                                'cn-zh',
-                                'co-es',
-                                'hr-hr',
-                                'cz-cs',
-                                'dk-da',
-                                'ee-et',
-                                'fi-fi',
-                                'fr-fr',
-                                'de-de',
-                                'gr-el',
-                                'hk-tzh',
-                                'hu-hu',
-                                'in-en',
-                                'id-id',
-                                'id-en',
-                                'ie-en',
-                                'il-he',
-                                'it-it',
-                                'jp-jp',
-                                'kr-kr',
-                                'lv-lv',
-                                'lt-lt',
-                                'xl-es',
-                                'my-ms',
-                                'my-en',
-                                'mx-es',
-                                'nl-nl',
-                                'nz-en',
-                                'no-no',
-                                'pe-es',
-                                'ph-en',
-                                'ph-tl',
-                                'pl-pl',
-                                'pt-pt',
-                                'ro-ro',
-                                'ru-ru',
-                                'sg-en',
-                                'sk-sk',
-                                'sl-sl',
-                                'za-en',
-                                'es-es',
-                                'se-sv',
-                                'ch-de',
-                                'ch-fr',
-                                'ch-it',
-                                'tw-tzh',
-                                'th-th',
-                                'tr-tr',
-                                'ua-uk',
-                                'uk-en',
-                                'us-en',
-                                'ue-es',
-                                've-es',
-                                'vn-vi',
-                                'wt-wt',
-                            ],
-                            'description': 'The region to use for the search. Infer this from the language used for the'
-                            'query. Default to `wt-wt` if not specified',
+                        'count': {
+                            'type': 'integer',
+                            'description': 'The number of images to return. Default to 1 if not specified',
                         },
                     },
-                    'required': ['query', 'type', 'region'],
+                    'required': ['query'],
                 },
             }
         ]
@@ -120,22 +49,31 @@ class DDGImageSearchPlugin(Plugin):
     async def execute(self, function_name, helper, **kwargs) -> Dict:
         with DDGS() as ddgs:
             image_type = kwargs.get('type', 'photo')
+            images_count = kwargs.get('count', 1)
             ddgs_images_gen = ddgs.images(
                 kwargs['query'],
                 region=kwargs.get('region', 'wt-wt'),
                 safesearch=self.safesearch,
                 type_image=image_type,
             )
-            results = list(islice(ddgs_images_gen, 10))
+            results = list(islice(ddgs_images_gen, images_count))
             if not results or len(results) == 0:
                 return {'result': 'No results found'}
 
             # Shuffle the results to avoid always returning the same image
             random.shuffle(results)
 
+            if image_type == 'gif':
+                return {
+                    'direct_result': {
+                        'kind': 'gif',
+                        'value': results[0]['image'],
+                    }
+                }
+
             return {
                 'direct_result': {
-                    'kind': image_type,
-                    'value': results[0]['image'],
+                    'kind': 'album',
+                    'value': [result['image'] for result in results],
                 }
             }

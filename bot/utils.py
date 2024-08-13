@@ -363,6 +363,10 @@ async def handle_direct_result(config, update: Update, response: any, save_reply
 
     if kind == 'photo':
         sent_msg = await update.effective_message.reply_photo(**common_args, photo=value)
+    elif kind == 'album':
+        media = [telegram.InputMediaPhoto(media=photo) for photo in value]
+        sent_msgs = await update.effective_message.reply_media_group(**common_args, media=media)
+        sent_msg = sent_msgs[-1] if sent_msgs else None
     elif kind in {'gif', 'file'}:
         sent_msg = await update.effective_message.reply_document(**common_args, document=value)
     elif kind == 'voice':
