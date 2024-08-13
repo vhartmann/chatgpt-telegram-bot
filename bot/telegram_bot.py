@@ -70,22 +70,22 @@ class ChatGPTTelegramBot:
         self.openai = openai
         bot_language = self.config['bot_language']
         self.commands = [
-            BotCommand(
-                command='help',
-                description=localized_text('help_description', bot_language),
-            ),
+            # BotCommand(
+            #     command='help',
+            #     description=localized_text('help_description', bot_language),
+            # ),
             BotCommand(
                 command='reset',
                 description=localized_text('reset_description', bot_language),
             ),
-            BotCommand(
-                command='stats',
-                description=localized_text('stats_description', bot_language),
-            ),
-            BotCommand(
-                command='resend',
-                description=localized_text('resend_description', bot_language),
-            ),
+            # BotCommand(
+            #     command='stats',
+            #     description=localized_text('stats_description', bot_language),
+            # ),
+            # BotCommand(
+            #     command='resend',
+            #     description=localized_text('resend_description', bot_language),
+            # ),
         ]
         # If imaging is enabled, add the "image" command to the list
         if self.config.get('enable_image_generation', False):
@@ -104,12 +104,15 @@ class ChatGPTTelegramBot:
                 )
             )
 
-        self.group_commands = [
-            BotCommand(
-                command='chat',
-                description=localized_text('chat_description', bot_language),
-            )
-        ] + self.commands
+        self.group_commands = (
+            [
+                # BotCommand(
+                #     command='chat',
+                #     description=localized_text('chat_description', bot_language),
+                # )
+            ]
+            + self.commands
+        )
         self.disallowed_message = localized_text('disallowed', bot_language)
         self.budget_limit_message = localized_text('budget_limit', bot_language)
         self.usage = {}
@@ -1307,19 +1310,19 @@ class ChatGPTTelegramBot:
         )
 
         application.add_handler(CommandHandler('reset', self.reset))
-        application.add_handler(CommandHandler('help', self.help))
+        # application.add_handler(CommandHandler('help', self.help))
         application.add_handler(CommandHandler('image', self.image))
         application.add_handler(CommandHandler('tts', self.tts))
-        application.add_handler(CommandHandler('start', self.help))
-        application.add_handler(CommandHandler('stats', self.stats))
-        application.add_handler(CommandHandler('resend', self.resend))
-        application.add_handler(
-            CommandHandler(
-                'chat',
-                self.prompt,
-                filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP,
-            )
-        )
+        # application.add_handler(CommandHandler('start', self.help))
+        # application.add_handler(CommandHandler('stats', self.stats))
+        # application.add_handler(CommandHandler('resend', self.resend))
+        # application.add_handler(
+        #     CommandHandler(
+        #         'chat',
+        #         self.prompt,
+        #         filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP,
+        #     )
+        # )
         application.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, self.vision))
         application.add_handler(
             MessageHandler(
