@@ -1,11 +1,10 @@
 import json
-import os
-from typing import Dict, Optional
+from typing import Dict
 
 from plugins.auto_tts import AutoTextToSpeech
 from plugins.ddg_image_search import DDGImageSearchPlugin
-from plugins.ddg_web_search import DDGWebSearchPlugin
 from plugins.dice import DicePlugin
+from plugins.google_web_search import GoogleWebSearchPlugin
 from plugins.gtts_text_to_speech import GTTSTextToSpeech
 from plugins.spotify import SpotifyPlugin
 from plugins.weather import WeatherPlugin
@@ -22,12 +21,12 @@ class PluginManager:
     """
 
     def __init__(self, config):
-        # enabled_plugins = config.get('plugins', [])
         plugin_mapping = {
             'wolfram': WolframAlphaPlugin,
             'weather': WeatherPlugin,
-            'ddg_web_search': DDGWebSearchPlugin,
+            # 'ddg_web_search': DDGWebSearchPlugin,
             # 'ddg_translate': DDGTranslatePlugin,
+            'google_web_search': GoogleWebSearchPlugin,
             'ddg_image_search': DDGImageSearchPlugin,
             'spotify': SpotifyPlugin,
             'worldtimeapi': WorldTimeApiPlugin,
@@ -41,24 +40,17 @@ class PluginManager:
             'website_content': WebsiteContentPlugin,
             'youtube_transcript': YoutubeTranscriptPlugin,
         }
-        self.plugins = [plugin() for plugin in plugin_mapping.values()]
-        # self.plugins = []
-        # self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
 
-    def get_functions_specs(self, query: Optional[str] = None):
+        enabled_plugins = config.get('plugins', [])
+        if 'all' in enabled_plugins:
+            enabled_plugins = list(plugin_mapping.keys())
+
+        self.plugins = [plugin_mapping[plugin]() for plugin in enabled_plugins if plugin in plugin_mapping]
+
+    def get_functions_specs(self):
         """
         Return the list of function specs that can be called by the model
         """
-        use_all_plugins = True
-        if query:
-            use_all_plugins = query.lower().startswith('z')
-
-        if 'USE_ALL_PLUGINS' in os.environ:
-            use_all_plugins = True
-
-        if not use_all_plugins:
-            return []
-
         return [spec for specs in map(lambda plugin: plugin.get_spec(), self.plugins) for spec in specs]
 
     async def call_function(self, function_name, helper, arguments) -> Dict:

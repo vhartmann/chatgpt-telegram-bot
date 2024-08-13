@@ -369,7 +369,7 @@ class OpenAIHelper:
                 common_args['stream_options'] = {'include_usage': True}
 
             if self.config['enable_functions'] and not self.conversations_vision[chat_id]:
-                functions = self.plugin_manager.get_functions_specs(query)
+                functions = self.plugin_manager.get_functions_specs()
                 if len(functions) > 0:
                     common_args['functions'] = functions
                     common_args['function_call'] = 'auto'
