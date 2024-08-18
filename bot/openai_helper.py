@@ -151,6 +151,9 @@ class OpenAIHelper:
         message: ChatCompletionMessageParam
 
     async def init_conv_in_db(self, chat_id: str) -> None:
+        if not self.db_pool:
+            return
+
         if chat_id.split('_')[0] not in self.config['allowed_chat_ids_to_track']:
             logging.debug(f'Chat ID {chat_id} is not allowed to be tracked')
             return
@@ -173,6 +176,9 @@ class OpenAIHelper:
         logging.debug(f'Chat ID {chat_id} is now being tracked')
 
     async def add_conv_in_db(self, chat_id: str, role: str, content: str, name: Optional[str] = None) -> None:
+        if not self.db_pool:
+            return
+
         if chat_id.split('_')[0] not in self.config['allowed_chat_ids_to_track']:
             logging.debug(f'Chat ID {chat_id} is not allowed to be tracked')
             return
