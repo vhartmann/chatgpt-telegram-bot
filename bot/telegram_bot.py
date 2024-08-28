@@ -4,6 +4,7 @@ import asyncio
 import io
 import logging
 import os
+from collections.abc import Sequence
 from typing import Optional
 from uuid import uuid4
 
@@ -633,7 +634,7 @@ class ChatGPTTelegramBot:
                 return
 
         effective_attachment = reply.effective_attachment if reply else update.message.effective_attachment
-        if isinstance(effective_attachment, list):
+        if isinstance(effective_attachment, Sequence):
             image = effective_attachment[-1]
         else:
             image = effective_attachment
