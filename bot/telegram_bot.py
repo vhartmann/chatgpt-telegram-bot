@@ -589,7 +589,7 @@ class ChatGPTTelegramBot:
 
         await wrap_with_indicator(update, context, _execute, constants.ChatAction.TYPING)
 
-    async def vision(self, update: Update, context: ContextTypes.DEFAULT_TYPE, image=None):
+    async def vision(self, update: Update, context: ContextTypes.DEFAULT_TYPE, reply: Message = None):
         """
         Interpret image using vision model.
         """
@@ -599,12 +599,12 @@ class ChatGPTTelegramBot:
         ai_context_id = self.get_thread_id(update)
         chat_id = update.effective_chat.id
 
-        if image is None:
+        if reply is None:
             prompt = update.message.caption
         else:
             prompt = message_text(update.message)
 
-        if image is None and is_group_chat(update):
+        if reply is None and is_group_chat(update):
             if self.config['ignore_group_vision']:
                 logging.info('Vision coming from group chat, ignoring...')
                 return
@@ -622,7 +622,7 @@ class ChatGPTTelegramBot:
                 if no_reply and no_keyword:
                     logging.info('Vision coming from group chat with wrong keyword, ignoring...')
                     return
-        elif image and is_group_chat(update):
+        elif reply and is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
             no_keyword = (prompt is None and trigger_keyword != '') or (
                 prompt is not None and not prompt.lower().startswith(trigger_keyword.lower())
@@ -632,8 +632,11 @@ class ChatGPTTelegramBot:
                 logging.info('Vision coming from group chat with wrong keyword, ignoring...')
                 return
 
-        if image is None:
-            image = update.message.effective_attachment[-1]
+        effective_attachment = reply.effective_attachment if reply else update.message.effective_attachment
+        if isinstance(effective_attachment, list):
+            image = effective_attachment[-1]
+        else:
+            image = effective_attachment
 
         async def _execute():
             bot_language = self.config['bot_language']
@@ -838,7 +841,7 @@ class ChatGPTTelegramBot:
         self.last_message[chat_id] = prompt
 
         if update.message.reply_to_message and update.message.reply_to_message.effective_attachment:
-            return await self.vision(update, context, update.message.reply_to_message.effective_attachment[-1])
+            return await self.vision(update, context, update.message.reply_to_message)
 
         if is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
