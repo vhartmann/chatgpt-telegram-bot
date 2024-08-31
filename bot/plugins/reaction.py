@@ -19,7 +19,7 @@ class ReactionPlugin(Plugin):
         return [
             {
                 'name': 'react_with_emoji',
-                'description': 'Respond with a specified emoji reaction instead of short messages',
+                'description': 'Set emoji as a reaction to the reply message',
                 'parameters': {
                     'type': 'object',
                     'properties': {
