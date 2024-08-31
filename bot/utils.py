@@ -361,6 +361,7 @@ async def handle_direct_result(config, update: Update, response: any, save_reply
         'reply_to_message_id': get_reply_to_message_id(config, update),
     }
 
+    sent_msg = None
     if kind == 'photo':
         sent_msg = await update.effective_message.reply_photo(**common_args, photo=value)
     elif kind == 'album':
@@ -369,12 +370,12 @@ async def handle_direct_result(config, update: Update, response: any, save_reply
         sent_msg = sent_msgs[-1] if sent_msgs else None
     elif kind in {'gif', 'file'}:
         sent_msg = await update.effective_message.reply_document(**common_args, document=value)
+    elif kind == 'reaction':
+        await update.effective_message.set_reaction(value)
     elif kind == 'voice':
         sent_msg = await update.effective_message.reply_voice(**common_args, voice=value)
     elif kind == 'dice':
         sent_msg = await update.effective_message.reply_dice(**common_args, emoji=value)
-    else:
-        sent_msg = None
 
     if save_reply and sent_msg:
         save_reply(sent_msg, update)

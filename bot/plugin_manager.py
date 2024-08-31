@@ -6,6 +6,7 @@ from plugins.ddg_image_search import DDGImageSearchPlugin
 from plugins.dice import DicePlugin
 from plugins.google_web_search import GoogleWebSearchPlugin
 from plugins.gtts_text_to_speech import GTTSTextToSpeech
+from plugins.reaction import ReactionPlugin
 from plugins.spotify import SpotifyPlugin
 from plugins.weather import WeatherPlugin
 from plugins.website_content import WebsiteContentPlugin
@@ -22,6 +23,7 @@ class PluginManager:
 
     def __init__(self, config):
         plugin_mapping = {
+            'reaction': ReactionPlugin,
             'wolfram': WolframAlphaPlugin,
             'weather': WeatherPlugin,
             # 'ddg_web_search': DDGWebSearchPlugin,
