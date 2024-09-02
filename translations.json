@@ -43,7 +43,7 @@
         "openai_invalid":"OpenAI Invalid request",
         "error":"An error has occurred",
         "try_again":"Please try again in a while",
-        "answer_with_chatgpt":"Answer with ChatGPT",
+        "answer_with_chatgpt":"Get answer",
         "ask_chatgpt":"Ask ChatGPT",
         "loading":"Loading...",
         "function_unavailable_in_inline_mode": "This function is unavailable in inline mode"
