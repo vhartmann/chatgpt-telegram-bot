@@ -506,11 +506,11 @@ class ChatGPTTelegramBot:
 
             except Exception as e:
                 logging.exception(e)
-                await update.effective_message.reply_text(
-                    message_thread_id=get_forum_thread_id(update),
-                    reply_to_message_id=get_reply_to_message_id(self.config, update),
-                    text=localized_text('media_type_fail', bot_language),
-                )
+                # await update.effective_message.reply_text(
+                #     message_thread_id=get_forum_thread_id(update),
+                #     reply_to_message_id=get_reply_to_message_id(self.config, update),
+                #     text=localized_text('media_type_fail', bot_language),
+                # )
                 if os.path.exists(filename):
                     os.remove(filename)
                 return
@@ -641,6 +641,8 @@ class ChatGPTTelegramBot:
 
         async def _execute():
             bot_language = self.config['bot_language']
+            total_tokens = 0
+
             try:
                 media_file = await context.bot.get_file(image.file_id)
                 temp_file = io.BytesIO(await media_file.download_as_bytearray())
@@ -672,11 +674,11 @@ class ChatGPTTelegramBot:
 
             except Exception as e:
                 logging.exception(e)
-                await update.effective_message.reply_text(
-                    message_thread_id=get_forum_thread_id(update),
-                    reply_to_message_id=get_reply_to_message_id(self.config, update),
-                    text=localized_text('media_type_fail', bot_language),
-                )
+                # await update.effective_message.reply_text(
+                #     message_thread_id=get_forum_thread_id(update),
+                #     reply_to_message_id=get_reply_to_message_id(self.config, update),
+                #     text=localized_text('media_type_fail', bot_language),
+                # )
 
             user_id = update.message.from_user.id
             if user_id not in self.usage:
@@ -1042,7 +1044,7 @@ class ChatGPTTelegramBot:
                     [
                         [
                             InlineKeyboardButton(
-                                text=f'🤖 {localized_text("answer_with_chatgpt", bot_language)}',
+                                text=f'{localized_text("answer_with_chatgpt", bot_language)}',
                                 callback_data=callback_data,
                             )
                         ]
